@@ -40,8 +40,8 @@ async def llm_query_stream(request: ChatRequest):
     try:
         async def event_generator():
             async for token in query_llm_stream(request.messages):
-                yield f"data: {token}\n\n"
-            yield "data: [DONE]\n\n"
+                yield f"{token}"
+            yield "[DONE]"
             
         return StreamingResponse(
             event_generator(),
