@@ -4,3 +4,4 @@ uvicorn[standard]  # For running the FastAPI server
 python-dotenv
 azure-data-tables
 pyjwt
+bcrypt

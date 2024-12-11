@@ -14,4 +14,7 @@ class ChatResponse(BaseModel):
 class User(BaseModel):
     username: str
     password: str
+    email: str
+    first_name: str
+    last_name: str
     api_keys: Dict[str, str] = {} 

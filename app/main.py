@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from app.services.llm_service import query_llm_stream
-from app.services.user_service import UserService
-from app.models.chat import ChatRequest, ChatResponse
-from app.utils.logger import setup_logger
+from services.llm_service import query_llm_stream
+from services.user_service import UserService
+from models.chat import ChatRequest, ChatResponse
+from utils.logger import setup_logger
 import jwt
 
 logger = setup_logger(__name__)
@@ -73,8 +73,11 @@ async def shutdown_event():
     logger.info("API Server shutting down")
 
 @app.post("/login/")
-async def login(username: str, password: str):
+async def login(credentials: dict = Body(...)):
     try:
+        username = credentials.get("username")
+        password = credentials.get("password")
+        
         token = user_service.login_user(username, password)
         return {"token": token}
     except HTTPException as e:
@@ -85,5 +88,19 @@ async def get_user_info(user_id: str):
     try:
         user_info = user_service.get_user_info(user_id)
         return user_info
+    except HTTPException as e:
+        raise e
+
+@app.post("/signup/")
+async def signup(user_data: dict = Body(...)):
+    try:
+        username = user_data.get("username")
+        password = user_data.get("password")
+        email = user_data.get("email")
+        first_name = user_data.get("firstName")
+        last_name = user_data.get("lastName")
+        
+        user_service.signup_user(username, password, email, first_name, last_name)
+        return {"message": "User created successfully"}
     except HTTPException as e:
         raise e

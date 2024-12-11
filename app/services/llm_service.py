@@ -1,8 +1,8 @@
 import json
 import httpx
-from app.config import Config
-from app.utils.logger import setup_logger
-from app.models.chat import Message
+from config import Config
+from utils.logger import setup_logger
+from models.chat import Message
 
 logger = setup_logger(__name__)
 
