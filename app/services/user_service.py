@@ -21,9 +21,9 @@ class UserService:
         self.users_table = self.table_service.get_table_client(Config.AZURE_STORAGE_USERS_TABLE_NAME)
         self.secret_key = "your_secret_key"  # Replace with a secure key
 
-    def create_jwt_token(self, user_id: str) -> str:
+    def create_jwt_token(self, username: str) -> str:
         payload = {
-            "user_id": user_id,
+            "username": username,
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }
         return jwt.encode(payload, self.secret_key, algorithm="HS256")
@@ -60,9 +60,9 @@ class UserService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def get_user_info(self, user_id: str) -> dict:
+    def get_user_info(self, username: str) -> dict:
         try:
-            user_entity = self.users_table.get_entity(partition_key="users", row_key=user_id)
+            user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
             return {
                 "username": user_entity["RowKey"],
                 "email": user_entity.get("email", ""),

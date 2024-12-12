@@ -50,3 +50,25 @@ class ConversationService:
             return [Message(**msg) for msg in messages]
         except Exception as e:
             raise HTTPException(status_code=404, detail="Conversation not found") 
+
+    def get_conversations_by_username(self, username: str) -> List[Conversation]:
+        try:
+            # Query all conversations for the user
+            filter_query = f"PartitionKey eq 'conversations' and username eq '{username}'"
+            conversations = self.conversations_table.query_entities(filter_query)
+            
+            # Convert the entities to Conversation objects
+            result = []
+            for entity in conversations:
+                messages = json.loads(entity['messages'])
+                conversation = Conversation(
+                    conversation_id=entity['RowKey'],
+                    username=entity['username'],
+                    description=entity.get('description', ''),
+                    messages=[Message(**msg) for msg in messages]
+                )
+                result.append(conversation)
+                
+            return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

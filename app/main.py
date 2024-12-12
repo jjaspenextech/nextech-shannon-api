@@ -88,8 +88,8 @@ async def login(credentials: dict = Body(...)):
 @app.get("/user-info/")
 async def get_user_info(token_data: dict = Depends(verify_jwt_token)):
     try:
-        user_id = token_data.get("user_id")
-        user_info = user_service.get_user_info(user_id)
+        username = token_data.get("username")
+        user_info = user_service.get_user_info(username)
         return user_info
     except HTTPException as e:
         raise e
@@ -121,5 +121,17 @@ async def get_conversation(conversation_id: str, token_data: dict = Depends(veri
     try:
         messages = conversation_service.get_conversation(conversation_id)
         return {"messages": messages}
+    except HTTPException as e:
+        raise e
+
+@app.get("/conversations/{username}")
+async def get_conversations(username: str, token_data: dict = Depends(verify_jwt_token)):
+    try:
+        # Optional: Verify that the requesting user matches the username
+        if token_data.get("username") != username:
+            raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
+            
+        conversations = conversation_service.get_conversations_by_username(username)
+        return conversations
     except HTTPException as e:
         raise e
