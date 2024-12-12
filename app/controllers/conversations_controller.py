@@ -5,7 +5,7 @@ from services.auth_service import verify_jwt_token
 
 router = APIRouter()
 
-@router.post("/save-conversation/")
+@router.post("/conversation/")
 async def save_conversation(conversation: Conversation, token_data: dict = Depends(verify_jwt_token)):
     try:
         conversation_service = ConversationService()
@@ -14,7 +14,7 @@ async def save_conversation(conversation: Conversation, token_data: dict = Depen
     except HTTPException as e:
         raise e
 
-@router.get("/get-conversation/{conversation_id}")
+@router.get("/conversation/{conversation_id}")
 async def get_conversation(conversation_id: str, token_data: dict = Depends(verify_jwt_token)):
     try:
         conversation_service = ConversationService()
@@ -22,3 +22,17 @@ async def get_conversation(conversation_id: str, token_data: dict = Depends(veri
         return {"messages": messages}
     except HTTPException as e:
         raise e 
+
+        
+@router.get("/conversations/{username}")
+async def get_conversations(username: str, token_data: dict = Depends(verify_jwt_token)):
+    try:
+        conversation_service = ConversationService()
+        # Optional: Verify that the requesting user matches the username
+        if token_data.get("username") != username:
+            raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
+            
+        conversations = conversation_service.get_conversations(username)
+        return conversations
+    except HTTPException as e:
+        raise e

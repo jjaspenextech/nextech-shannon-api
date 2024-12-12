@@ -3,25 +3,26 @@ import httpx
 from config import Config
 from utils.logger import setup_logger
 from models.chat import Message
-from typing import Literal
+from typing import Literal, Optional
+import math
 logger = setup_logger(__name__)
+MAX_TOKENS = 8000
 
 class LLMMessage():
     role: Literal['user', 'assistant', 'system']
     content: str
-    contexts: List[str] = []
+    contexts: list[str] = [],
+    sequence: Optional[int] = 1
 
     def __init__(self, role: Literal['user', 'assistant', 'system'], content: str):
         self.role = role
         self.content = content
 
-    def dict(self):
+    def dict(self, ignore_contexts: bool = False):
         return {
             "role": self.role,
-            "content": f"{self.content}\nContexts: {self.contexts}" if self.contexts else self.content
+            "content": f"{self.content}\nContexts: {self.contexts}" if not ignore_contexts and self.contexts else self.content
         }
-
-MAX_TOKENS = 8000
 
 def truncate_messages(messages: list[Message]) -> list[Message]:
     """Truncate messages to fit within context window"""
@@ -38,6 +39,19 @@ def truncate_messages(messages: list[Message]) -> list[Message]:
         remaining_messages.pop(0)  # Remove oldest messages first
     
     return result + remaining_messages
+
+def build_contexts(messages: list[Message], max_tokens: int) -> list[str]:
+    contexts = []
+    max_input_tokens = math.floor(max_tokens*0.9)
+    messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
+    for message in messages_sorted_by_sequence_desc:
+        msg_str = message.dict()
+        if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
+            msg_str = message.dict(ignore_contexts=True)
+            if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
+                break
+        contexts.append(msg_str)
+    return contexts
 
 async def get_query_params(messages: list[LLMMessage], stream: bool = False):    
     # Add system message if not present
@@ -59,8 +73,8 @@ async def get_query_params(messages: list[LLMMessage], stream: bool = False):
     }
     
     payload = {
-        "messages": [msg.dict() for msg in messages], 
-        "max_tokens": 8000,
+        "messages": build_contexts(messages, MAX_TOKENS), 
+        "max_tokens": MAX_TOKENS,
         "temperature": 0
     }
     
