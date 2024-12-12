@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Literal, Dict
+from typing import List, Literal, Dict, Optional
 import uuid
 
 class Message(BaseModel):
@@ -25,3 +25,10 @@ class Conversation(BaseModel):
     username: str
     messages: List[Message]
     description: str = "" 
+
+class ApiKeyUpdate(BaseModel):
+    service: Literal['jira']  # We can add more services later
+    key: str
+
+class ApiKeys(BaseModel):
+    jira: Optional[str] = None 

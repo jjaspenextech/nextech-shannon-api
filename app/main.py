@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from services.llm_service import chat_with_llm_stream
 from services.user_service import UserService
 from services.conversation_service import ConversationService
-from models.chat import ChatRequest, ChatResponse, Conversation
+from models.chat import ChatRequest, ChatResponse, Conversation, ApiKeyUpdate
 from utils.logger import setup_logger
 import jwt
 
@@ -133,5 +133,21 @@ async def get_conversations(username: str, token_data: dict = Depends(verify_jwt
             
         conversations = conversation_service.get_conversations_by_username(username)
         return conversations
+    except HTTPException as e:
+        raise e
+
+@app.post("/api-keys/update")
+async def update_api_key(key_update: ApiKeyUpdate, token_data: dict = Depends(verify_jwt_token)):
+    try:
+        username = token_data.get("username")
+        return user_service.update_api_key(username, key_update.service, key_update.key)
+    except HTTPException as e:
+        raise e
+
+@app.get("/api-keys")
+async def get_api_keys(token_data: dict = Depends(verify_jwt_token)):
+    try:
+        username = token_data.get("username")
+        return user_service.get_api_keys(username)
     except HTTPException as e:
         raise e

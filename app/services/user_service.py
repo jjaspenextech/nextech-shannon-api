@@ -1,6 +1,6 @@
 import jwt
 import datetime
-from azure.data.tables import TableServiceClient
+from azure.data.tables import TableServiceClient, UpdateMode
 from config import Config
 from models.chat import User, Message, Conversation
 from fastapi import HTTPException
@@ -131,3 +131,27 @@ class UserService:
             return [Message(**msg) for msg in messages]
         except Exception as e:
             raise HTTPException(status_code=404, detail="Conversation not found") 
+
+    def update_api_key(self, username: str, service: str, key: str) -> dict:
+        try:
+            user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
+            
+            # Initialize or update api_keys
+            api_keys = json.loads(user_entity.get('api_keys', '{}'))
+            api_keys[service] = key
+            
+            # Update the entity
+            user_entity['api_keys'] = json.dumps(api_keys)
+            self.users_table.update_entity(entity=user_entity, mode=UpdateMode.MERGE)
+            
+            return {"message": f"{service} API key updated successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def get_api_keys(self, username: str) -> dict:
+        try:
+            user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
+            api_keys = json.loads(user_entity.get('api_keys', '{}'))
+            return api_keys
+        except Exception as e:
+            raise HTTPException(status_code=404, detail="User not found") 
