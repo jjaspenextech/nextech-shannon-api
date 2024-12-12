@@ -32,7 +32,7 @@ async def get_conversations(username: str, token_data: dict = Depends(verify_jwt
         if token_data.get("username") != username:
             raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
             
-        conversations = conversation_service.get_conversations(username)
+        conversations = conversation_service.get_conversations_by_username(username)
         return conversations
     except HTTPException as e:
         raise e

@@ -6,7 +6,7 @@ class Message(BaseModel):
     message_id: Optional[str] = None
     conversation_id: Optional[str] = None
     content: str
-    context: List[Dict] = []
+    contexts: List[Dict] = []
     sequence: int
     role: Literal['user', 'assistant', 'system']
 

@@ -31,7 +31,6 @@ class ConversationService:
                     "conversation_id": conversation.conversation_id
                 }
                 convo_entity = self.conversations_table.create_entity(entity=conversation_entity)
-                print(convo_entity)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
@@ -45,13 +44,12 @@ class ConversationService:
                 "RowKey": id,
                 "conversation_id": conversation.conversation_id,
                 "content": message_data.content,
-                "context": json.dumps(message_data.context),
+                "contexts": json.dumps(message_data.contexts),
                 "sequence": index,
                 "message_id": id
             }
             try:
                 entity = self.messages_table.create_entity(entity=message_entity)
-                print(entity)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
@@ -65,7 +63,31 @@ class ConversationService:
                 conversation_id=conversation_entity['conversation_id'],
                 username=conversation_entity['username'],
                 description=conversation_entity.get('description'),
-                messages=[Message(**{**msg, 'context': json.loads(msg['context'])}) for msg in sorted_messages]
+                messages=[Message(**{**msg, 'contexts': json.loads(msg['contexts'])}) for msg in sorted_messages]
             )
         except Exception as e:
             raise HTTPException(status_code=404, detail="Conversation not found")
+
+    def get_conversations_by_username(self, username: str) -> List[Conversation]:
+        # Query all conversations for the user
+        filter_query = f"PartitionKey eq 'conversations' and username eq '{username}'"
+        conversations = self.conversations_table.query_entities(filter_query)
+
+        # Convert the entities to Conversation objects
+        result = []
+        for entity in conversations:
+            messages = self.get_messages_by_conversation_id(entity['RowKey'])
+            conversation = Conversation(
+                conversation_id=entity['RowKey'],
+                username=entity['username'],
+                description=entity.get('description', ''),
+                messages=messages
+            )
+            result.append(conversation)
+            
+        return result
+
+    def get_messages_by_conversation_id(self, conversation_id: str) -> List[Message]:
+        filter_query = f"PartitionKey eq 'messages' and conversation_id eq '{conversation_id}'"
+        messages = self.messages_table.query_entities(filter_query)
+        return [Message(**msg) for msg in messages]

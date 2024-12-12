@@ -3,69 +3,46 @@ import httpx
 from config import Config
 from utils.logger import setup_logger
 from models.chat import Message
-from typing import Literal, Optional
+from typing import Literal, Optional, List, Dict
 import math
 logger = setup_logger(__name__)
 MAX_TOKENS = 8000
 
-class LLMMessage():
-    role: Literal['user', 'assistant', 'system']
-    content: str
-    contexts: list[str] = [],
-    sequence: Optional[int] = 1
-
-    def __init__(self, role: Literal['user', 'assistant', 'system'], content: str):
-        self.role = role
-        self.content = content
-
-    def dict(self, ignore_contexts: bool = False):
-        return {
-            "role": self.role,
-            "content": f"{self.content}\nContexts: {self.contexts}" if not ignore_contexts and self.contexts else self.content
-        }
-
-def truncate_messages(messages: list[Message]) -> list[Message]:
-    """Truncate messages to fit within context window"""
-    total_chars = sum(len(msg.content) for msg in messages)
-    
-    if total_chars / 3 <= MAX_TOKENS:
-        return messages
-    
-    # Keep system message if it exists
-    result = [msg for msg in messages if msg.role == 'system']
-    remaining_messages = [msg for msg in messages if msg.role != 'system']
-    
-    while remaining_messages and sum(len(msg.content) for msg in result + remaining_messages) / 3 > MAX_TOKENS:
-        remaining_messages.pop(0)  # Remove oldest messages first
-    
-    return result + remaining_messages
+def build_message_context(message: Message, ignore_contexts: bool = False):
+    context_str = "\nContexts: " + ", ".join(
+        [f"{context['type']}: {context['content']}" for context in message.contexts]
+    ) if message.contexts else ""
+    return {
+        "role": message.role,
+        "content": f"{message.content}{context_str}" if not ignore_contexts else message.content
+    }
 
 def build_contexts(messages: list[Message], max_tokens: int) -> list[str]:
     contexts = []
     max_input_tokens = math.floor(max_tokens*0.9)
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
     for message in messages_sorted_by_sequence_desc:
-        msg_str = message.dict()
+        msg_str = build_message_context(message)
         if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
-            msg_str = message.dict(ignore_contexts=True)
+            msg_str = build_message_context(message, ignore_contexts=True)
             if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
                 break
-        contexts.append(msg_str)
+        # add to the front of the list
+        contexts.insert(0, msg_str)
+    
     return contexts
 
-async def get_query_params(messages: list[LLMMessage], stream: bool = False):    
+async def get_query_params(messages: list[Message], stream: bool = False):    
+    chat_messages = build_contexts(messages, MAX_TOKENS)
     # Add system message if not present
-    if not any(msg.role == 'system' for msg in messages):
-        messages.insert(0, LLMMessage(
-            role='system',
-            content="You are a helpful AI assistant for a company's internal chat system. "
+    if not any(msg['role'] == 'system' for msg in chat_messages):
+        chat_messages.insert(0, {
+            "role": 'system',
+            "content": "You are a helpful AI assistant for a company's internal chat system. "
                    "Provide clear, professional responses while maintaining a friendly tone. "
                    "If you're unsure about something, acknowledge the uncertainty and suggest alternatives "
                    "or ask for clarification."
-        ))
-    
-    # Truncate messages to fit context window
-    messages = truncate_messages(messages)
+        })
     
     headers = {
         "api-key": Config.AZURE_OPENAI_API_KEY,
@@ -73,7 +50,7 @@ async def get_query_params(messages: list[LLMMessage], stream: bool = False):
     }
     
     payload = {
-        "messages": build_contexts(messages, MAX_TOKENS), 
+        "messages": chat_messages, 
         "max_tokens": MAX_TOKENS,
         "temperature": 0
     }
@@ -86,7 +63,7 @@ async def get_query_params(messages: list[LLMMessage], stream: bool = False):
     return headers, payload, url
 
 async def query_llm(content: str):
-    messages = [LLMMessage(role="user", content=content)]
+    messages = [Message(role="user", content=content)]
     return await chat_with_llm(messages)
 
 async def chat_with_llm(messages: list[Message]):
