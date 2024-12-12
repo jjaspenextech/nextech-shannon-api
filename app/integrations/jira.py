@@ -2,6 +2,7 @@ import os
 import re
 import requests
 from typing import Optional
+from models.chat import User
 
 class JiraIntegration:
     def __init__(self):
@@ -17,15 +18,19 @@ class JiraIntegration:
             "Content-Type": "application/json"
         }
 
-    def _make_request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
+    def _make_request(self, method: str, endpoint: str, api_key: str, data: Optional[dict] = None) -> dict:
         """Make a request to the Jira API"""
+        headers = {
+            "Authorization": f"Basic {api_key}",
+            "Content-Type": "application/json"
+        }
         url = f"{self.base_url}/rest/api/latest/{endpoint}"
         
         try:
             response = requests.request(
                 method=method,
                 url=url,
-                headers=self._get_headers(),
+                headers=headers,
                 json=data,
                 timeout=10
             )
@@ -61,12 +66,13 @@ class JiraIntegration:
             "or git checkout -b XXX-1234-story-summary"
         )
 
-    def get_story_details(self, story_key: str) -> dict:
+    def get_story_details(self, story_key: str, user: User) -> dict:
         """Get the details of a Jira story"""
         story_key = self.parse_story_key(story_key)
-        return self._make_request('GET', f'issue/{story_key}')
+        api_key = user.get_api_key('jira')
+        return self._make_request('GET', f'issue/{story_key}', api_key)
 
-    def get_story_description(self, story_key: str) -> str:
+    def get_story_description(self, story_key: str, user: User) -> str:
         """Get just the description of a Jira story"""
-        story_details = self.get_story_details(story_key)
+        story_details = self.get_story_details(story_key, user)
         return story_details.get('fields', {}).get('description', '')

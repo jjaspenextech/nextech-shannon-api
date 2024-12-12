@@ -60,15 +60,17 @@ class UserService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def get_user_info(self, username: str) -> dict:
+    def get_user_info(self, username: str) -> User:
         try:
             user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
-            return {
-                "username": user_entity["RowKey"],
-                "email": user_entity.get("email", ""),
-                "firstName": user_entity.get("first_name", ""),
-                "lastName": user_entity.get("last_name", "")
-            }
+            api_keys = json.loads(user_entity.get('api_keys', '{}'))
+            return User(
+                username=user_entity["RowKey"],
+                email=user_entity.get("email", ""),
+                first_name=user_entity.get("first_name", ""),
+                last_name=user_entity.get("last_name", ""),
+                api_keys=api_keys
+            )
         except Exception as e:
             raise HTTPException(status_code=404, detail="User not found")
 

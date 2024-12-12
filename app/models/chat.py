@@ -14,11 +14,16 @@ class ChatResponse(BaseModel):
 
 class User(BaseModel):
     username: str
-    password: str
+    password: Optional[str] = None
     email: str
     first_name: str
     last_name: str
     api_keys: Dict[str, str] = {}
+
+    def get_api_key(self, service: str) -> str:
+        if not (key := self.api_keys.get(service)):
+            raise ValueError(f"No API key found for service: {service}")
+        return key
 
 class Conversation(BaseModel):
     conversation_id: str = str(uuid.uuid4())
