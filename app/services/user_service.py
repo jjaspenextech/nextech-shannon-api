@@ -2,9 +2,12 @@ import jwt
 import datetime
 from azure.data.tables import TableServiceClient
 from config import Config
-from models.chat import User
+from models.chat import User, Message, Conversation
 from fastapi import HTTPException
 import bcrypt
+from typing import List
+from services.llm_service import query_llm  # Import the LLM query function
+import json
 
 class UserService:
     def __init__(self):
@@ -31,7 +34,7 @@ class UserService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-    def login_user(self, username: str, password: str) -> str:
+    def login_user(self, username: str, password: str) -> dict:
         try:
             user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
             user = User(
@@ -44,19 +47,30 @@ class UserService:
             )
             
             if user and self.verify_password(password, user.password):
-                return self.create_jwt_token(user.username)
+                token = self.create_jwt_token(user.username)
+                return {
+                    "token": token,
+                    "username": user.username,
+                    "email": user.email,
+                    "firstName": user.first_name,
+                    "lastName": user.last_name
+                }
             else:
                 raise HTTPException(status_code=401, detail="Invalid credentials")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def get_user_info(self, user_id: str):
+    def get_user_info(self, user_id: str) -> dict:
         try:
-            user_entity = self.users_table.get_entity(partition_key="user", row_key=user_id)
-            user = User(username=user_entity["username"], password=user_entity["password"], api_keys={})
-            return {"user_id": user.username, "username": user.username}
+            user_entity = self.users_table.get_entity(partition_key="users", row_key=user_id)
+            return {
+                "username": user_entity["RowKey"],
+                "email": user_entity.get("email", ""),
+                "firstName": user_entity.get("first_name", ""),
+                "lastName": user_entity.get("last_name", "")
+            }
         except Exception as e:
-            raise HTTPException(status_code=404, detail="User not found") 
+            raise HTTPException(status_code=404, detail="User not found")
 
     def create_user(self, username: str, password: str):
         hashed_password = self.hash_password(password)
@@ -81,3 +95,39 @@ class UserService:
             }
             # Insert the user into Azure Table Storage
             self.users_table.create_entity(entity=user_entity) 
+
+    async def save_conversation(self, conversation: Conversation):
+        # Check if the conversation is new
+        if len(conversation.messages) == 1:
+            # Generate a description using the LLM
+            first_message = conversation.messages[0].content
+            conversation.description = await query_llm(first_message)
+
+        conversation_entity = {
+            "PartitionKey": "conversations",
+            "RowKey": conversation.conversation_id,
+            "username": conversation.username,
+            "description": conversation.description,
+            "messages": json.dumps([msg.dict() for msg in conversation.messages])
+        }
+
+        try:
+            # Try to get the existing conversation
+            existing_entity = self.users_table.get_entity(partition_key="conversations", row_key=conversation.conversation_id)
+            # If it exists, update it
+            self.users_table.update_entity(entity=conversation_entity, mode='Merge')
+        except Exception as e:
+            # If it doesn't exist, create a new one
+            if "EntityNotFound" in str(e):
+                self.users_table.create_entity(entity=conversation_entity)
+            else:
+                raise HTTPException(status_code=500, detail=str(e))
+
+    def get_conversation(self, conversation_id: str) -> List[Message]:
+        try:
+            conversation_entity = self.users_table.get_entity(partition_key="conversations", row_key=conversation_id)
+            messages_json = conversation_entity["messages"]
+            messages = json.loads(messages_json)
+            return [Message(**msg) for msg in messages]
+        except Exception as e:
+            raise HTTPException(status_code=404, detail="Conversation not found") 

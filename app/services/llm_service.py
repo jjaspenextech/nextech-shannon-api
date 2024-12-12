@@ -24,9 +24,7 @@ def truncate_messages(messages: list[Message]) -> list[Message]:
     
     return result + remaining_messages
 
-async def query_llm_stream(messages: list[Message]):
-    logger.info(f"Starting streaming response for chat with {len(messages)} messages")
-    
+async def get_query_params(messages: list[Message], stream: bool = False):    
     # Add system message if not present
     if not any(msg.role == 'system' for msg in messages):
         messages.insert(0, Message(
@@ -48,11 +46,33 @@ async def query_llm_stream(messages: list[Message]):
     payload = {
         "messages": [msg.dict() for msg in messages],
         "max_tokens": 8000,
-        "temperature": 0,
-        "stream": True
+        "temperature": 0
     }
     
+    if stream:
+        payload["stream"] = True
+    
     url = f"{Config.AZURE_OPENAI_URL}openai/deployments/{Config.AZURE_OPENAI_MODEL}/chat/completions?api-version={Config.AZURE_OPENAI_API_VERSION}"
+    
+    return headers, payload, url
+
+async def query_llm(content: str):
+    messages = [Message(role="user", content=content)]
+    return await chat_with_llm(messages)
+
+async def chat_with_llm(messages: list[Message]):
+    headers, payload, url = await get_query_params(messages)
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        contents = json.loads(response.text)
+        return contents['choices'][0]['message']['content']
+
+async def chat_with_llm_stream(messages: list[Message]):
+    logger.info(f"Starting streaming response for chat with {len(messages)} messages")
+    
+    headers, payload, url = await get_query_params(messages, stream=True)
     
     async with httpx.AsyncClient() as client:
         async with client.stream('POST', url, headers=headers, json=payload) as response:

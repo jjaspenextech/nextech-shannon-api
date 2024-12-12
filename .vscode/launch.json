@@ -2,14 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Backend",
-      "type": "debugpy",
+      "name": "FastAPI",
+      "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/app/main.py",
-      "console": "integratedTerminal",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}/api"
-      }
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "jinja": true,
+      "justMyCode": true
     }
   ]
-} 
+}

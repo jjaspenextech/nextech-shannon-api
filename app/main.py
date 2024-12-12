@@ -1,14 +1,16 @@
 from fastapi import FastAPI, HTTPException, Depends, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from services.llm_service import query_llm_stream
+from services.llm_service import chat_with_llm_stream
 from services.user_service import UserService
-from models.chat import ChatRequest, ChatResponse
+from services.conversation_service import ConversationService
+from models.chat import ChatRequest, ChatResponse, Conversation
 from utils.logger import setup_logger
 import jwt
 
 logger = setup_logger(__name__)
 user_service = UserService()
+conversation_service = ConversationService()
 
 app = FastAPI()
 
@@ -52,7 +54,7 @@ async def llm_query_stream(request: ChatRequest, token_data: dict = Depends(veri
     logger.info(f"Received streaming chat request")
     try:
         async def event_generator():
-            async for token in query_llm_stream(request.messages):
+            async for token in chat_with_llm_stream(request.messages):
                 yield f"{token}"
             yield "[DONE]"
             
@@ -78,14 +80,15 @@ async def login(credentials: dict = Body(...)):
         username = credentials.get("username")
         password = credentials.get("password")
         
-        token = user_service.login_user(username, password)
-        return {"token": token}
+        user_data = user_service.login_user(username, password)
+        return user_data
     except HTTPException as e:
         raise e
 
 @app.get("/user-info/")
-async def get_user_info(user_id: str):
+async def get_user_info(token_data: dict = Depends(verify_jwt_token)):
     try:
+        user_id = token_data.get("user_id")
         user_info = user_service.get_user_info(user_id)
         return user_info
     except HTTPException as e:
@@ -102,5 +105,21 @@ async def signup(user_data: dict = Body(...)):
         
         user_service.signup_user(username, password, email, first_name, last_name)
         return {"message": "User created successfully"}
+    except HTTPException as e:
+        raise e
+
+@app.post("/save-conversation/")
+async def save_conversation(conversation: Conversation, token_data: dict = Depends(verify_jwt_token)):
+    try:
+        await conversation_service.save_conversation(conversation)
+        return {"message": "Conversation saved successfully"}
+    except HTTPException as e:
+        raise e
+
+@app.get("/get-conversation/{conversation_id}")
+async def get_conversation(conversation_id: str, token_data: dict = Depends(verify_jwt_token)):
+    try:
+        messages = conversation_service.get_conversation(conversation_id)
+        return {"messages": messages}
     except HTTPException as e:
         raise e
