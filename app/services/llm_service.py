@@ -3,8 +3,23 @@ import httpx
 from config import Config
 from utils.logger import setup_logger
 from models.chat import Message
-
+from typing import Literal
 logger = setup_logger(__name__)
+
+class LLMMessage():
+    role: Literal['user', 'assistant', 'system']
+    content: str
+    contexts: List[str] = []
+
+    def __init__(self, role: Literal['user', 'assistant', 'system'], content: str):
+        self.role = role
+        self.content = content
+
+    def dict(self):
+        return {
+            "role": self.role,
+            "content": f"{self.content}\nContexts: {self.contexts}" if self.contexts else self.content
+        }
 
 MAX_TOKENS = 8000
 
@@ -24,10 +39,10 @@ def truncate_messages(messages: list[Message]) -> list[Message]:
     
     return result + remaining_messages
 
-async def get_query_params(messages: list[Message], stream: bool = False):    
+async def get_query_params(messages: list[LLMMessage], stream: bool = False):    
     # Add system message if not present
     if not any(msg.role == 'system' for msg in messages):
-        messages.insert(0, Message(
+        messages.insert(0, LLMMessage(
             role='system',
             content="You are a helpful AI assistant for a company's internal chat system. "
                    "Provide clear, professional responses while maintaining a friendly tone. "
@@ -44,7 +59,7 @@ async def get_query_params(messages: list[Message], stream: bool = False):
     }
     
     payload = {
-        "messages": [msg.dict() for msg in messages],
+        "messages": [msg.dict() for msg in messages], 
         "max_tokens": 8000,
         "temperature": 0
     }
@@ -57,7 +72,7 @@ async def get_query_params(messages: list[Message], stream: bool = False):
     return headers, payload, url
 
 async def query_llm(content: str):
-    messages = [Message(role="user", content=content)]
+    messages = [LLMMessage(role="user", content=content)]
     return await chat_with_llm(messages)
 
 async def chat_with_llm(messages: list[Message]):

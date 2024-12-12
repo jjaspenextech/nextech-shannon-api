@@ -3,8 +3,12 @@ from typing import List, Literal, Dict, Optional
 import uuid
 
 class Message(BaseModel):
-    role: Literal['user', 'assistant', 'system']
+    message_id: Optional[str] = None
+    conversation_id: Optional[str] = None
     content: str
+    context: List[Dict] = []
+    sequence: int
+    role: Literal['user', 'assistant', 'system']
 
 class ChatRequest(BaseModel):
     messages: List[Message]
@@ -26,10 +30,10 @@ class User(BaseModel):
         return key
 
 class Conversation(BaseModel):
-    conversation_id: str = str(uuid.uuid4())
+    conversation_id: Optional[str] = str(uuid.uuid4())
     username: str
-    messages: List[Message]
-    description: str = "" 
+    messages: List[Message] = []
+    description: Optional[str] = None
 
 class ApiKeyUpdate(BaseModel):
     service: Literal['jira']  # We can add more services later
