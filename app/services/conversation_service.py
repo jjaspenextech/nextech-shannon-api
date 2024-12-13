@@ -8,6 +8,7 @@ from typing import List
 from azure.core.exceptions import ResourceNotFoundError
 import uuid
 from services.llm_service import query_llm
+from services.context_service import ContextService
 
 class ConversationService:
     def __init__(self):
@@ -22,6 +23,7 @@ class ConversationService:
         self.messages_table = self.table_service.get_table_client(Config.AZURE_STORAGE_MESSAGES_TABLE_NAME)
         self.contexts_blob_service = BlobServiceClient.from_connection_string(connection_string)
         self.contexts_blob_container = self.contexts_blob_service.get_container_client(Config.AZURE_STORAGE_CONTEXTS_BLOB_CONTAINER)
+        self.context_service = ContextService()
         
 
     async def save_conversation(self, conversation: Conversation):      
@@ -66,19 +68,12 @@ class ConversationService:
             "message_id": message.message_id
         }
         try:
-            context_names = [await self.save_context(context, message.message_id) for context in message.contexts]
+            context_names = [await self.context_service.save_context(context, message.message_id) for context in message.contexts]
             message_entity['contexts'] = json.dumps(context_names)
             entity = self.messages_table.create_entity(entity=message_entity)
             return entity
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
-
-    async def save_context(self, context: Context, message_id: str):
-        file_name_guid = str(uuid.uuid4())
-        blob_name = f"{message_id}/{file_name_guid}.json"
-        blob_client = self.contexts_blob_container.get_blob_client(blob_name)
-        blob_client.upload_blob(json.dumps(context.dict()))
-        return blob_name
 
     async def get_conversation(self, conversation_id: str) -> Conversation:
         try:
@@ -122,13 +117,8 @@ class ConversationService:
             blob_names = json.loads(message['contexts'])
             contexts = []
             for blob_name in blob_names:
-                context = await self.get_context(message['message_id'], blob_name)
+                context = await self.context_service.get_context(message['message_id'], blob_name)
                 contexts.append(context)
             message['contexts'] = contexts
             result.append(Message(**message))
         return result
-    
-    async def get_context(self, message_id: str, context_name: str) -> Context:
-        blob_client = self.contexts_blob_container.get_blob_client(context_name)
-        context_data = blob_client.download_blob().readall()
-        return Context(**json.loads(context_data))

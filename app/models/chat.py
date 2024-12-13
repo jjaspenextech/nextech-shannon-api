@@ -1,11 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Literal, Dict, Optional
 import uuid
-
-class Context(BaseModel):
-    type: str
-    content: str
-    error: Optional[str] = None
+from .context import Context
 
 class Message(BaseModel):
     message_id: Optional[str] = None
@@ -39,6 +35,7 @@ class Conversation(BaseModel):
     username: str
     messages: List[Message] = []
     description: Optional[str] = None
+    project_id: Optional[str] = None  # Reference to the associated project
 
 class ApiKeyUpdate(BaseModel):
     service: Literal['jira']  # We can add more services later
