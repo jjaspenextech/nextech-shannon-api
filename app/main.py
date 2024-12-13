@@ -5,6 +5,7 @@ from controllers.users_controller import router as users_router
 from controllers.conversations_controller import router as conversations_router
 from controllers.account_controller import router as account_router
 from controllers.llm_controller import router as llm_router
+from controllers.web_controller import router as web_router
 from utils.logger import setup_logger
 
 app = FastAPI()
@@ -24,6 +25,7 @@ app.include_router(users_router, prefix="/api")
 app.include_router(conversations_router, prefix="/api")
 app.include_router(account_router, prefix="/api")
 app.include_router(llm_router, prefix="/api")
+app.include_router(web_router, prefix="/api")
 
 @app.get("/")
 async def root():

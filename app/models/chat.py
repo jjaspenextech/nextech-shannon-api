@@ -2,12 +2,17 @@ from pydantic import BaseModel
 from typing import List, Literal, Dict, Optional
 import uuid
 
+class Context(BaseModel):
+    type: str
+    content: str
+    error: Optional[str] = None
+
 class Message(BaseModel):
     message_id: Optional[str] = None
     conversation_id: Optional[str] = None
     content: str
-    contexts: List[Dict] = []
-    sequence: int
+    contexts: List[Context] = []
+    sequence: int = 0
     role: Literal['user', 'assistant', 'system']
 
 class ChatRequest(BaseModel):
@@ -30,7 +35,7 @@ class User(BaseModel):
         return key
 
 class Conversation(BaseModel):
-    conversation_id: Optional[str] = str(uuid.uuid4())
+    conversation_id: Optional[str] = None
     username: str
     messages: List[Message] = []
     description: Optional[str] = None

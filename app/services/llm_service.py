@@ -10,7 +10,7 @@ MAX_TOKENS = 8000
 
 def build_message_context(message: Message, ignore_contexts: bool = False):
     context_str = "\nContexts: " + ", ".join(
-        [f"{context['type']}: {context['content']}" for context in message.contexts]
+        [f"{context.type}: {context.content}" for context in message.contexts]
     ) if message.contexts else ""
     return {
         "role": message.role,

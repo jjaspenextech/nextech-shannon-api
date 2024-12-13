@@ -9,8 +9,8 @@ router = APIRouter()
 async def save_conversation(conversation: Conversation, token_data: dict = Depends(verify_jwt_token)):
     try:
         conversation_service = ConversationService()
-        await conversation_service.save_conversation(conversation)
-        return {"message": "Conversation and messages saved successfully"}
+        saved_conversation = await conversation_service.save_conversation(conversation)
+        return {"message": "Conversation and messages saved successfully", "conversation": saved_conversation}
     except HTTPException as e:
         raise e
 
@@ -18,8 +18,8 @@ async def save_conversation(conversation: Conversation, token_data: dict = Depen
 async def get_conversation(conversation_id: str, token_data: dict = Depends(verify_jwt_token)):
     try:
         conversation_service = ConversationService()
-        messages = await conversation_service.get_conversation(conversation_id)
-        return {"messages": messages}
+        conversation = await conversation_service.get_conversation(conversation_id)
+        return conversation
     except HTTPException as e:
         raise e 
 
@@ -32,7 +32,7 @@ async def get_conversations(username: str, token_data: dict = Depends(verify_jwt
         if token_data.get("username") != username:
             raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
             
-        conversations = conversation_service.get_conversations_by_username(username)
+        conversations = await conversation_service.get_conversations_by_username(username)
         return conversations
     except HTTPException as e:
         raise e
