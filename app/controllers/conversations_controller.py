@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.chat import Conversation
+from models import Conversation
 from services.conversation_service import ConversationService
 from services.auth_service import verify_jwt_token
 

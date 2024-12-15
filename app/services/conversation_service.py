@@ -2,7 +2,7 @@ import json
 from azure.data.tables import TableServiceClient, UpdateMode
 from azure.storage.blob import BlobServiceClient
 from fastapi import HTTPException
-from models.chat import Conversation, Message, Context
+from models import Conversation, Message, Context
 from config import Config
 from typing import List
 from azure.core.exceptions import ResourceNotFoundError
@@ -23,29 +23,20 @@ class ConversationService:
         self.messages_table = self.table_service.get_table_client(Config.AZURE_STORAGE_MESSAGES_TABLE_NAME)
         self.contexts_blob_service = BlobServiceClient.from_connection_string(connection_string)
         self.contexts_blob_container = self.contexts_blob_service.get_container_client(Config.AZURE_STORAGE_CONTEXTS_BLOB_CONTAINER)
-        self.context_service = ContextService()
-        
+        self.context_service = ContextService()        
 
     async def save_conversation(self, conversation: Conversation):      
         if conversation.conversation_id is None and conversation.messages is not None and len(conversation.messages) > 0:            
             try:
-                first_message = conversation.messages[0].content
-                prompt = f"Generate a short description for the following conversation. This description \
-                will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
-                conversation.description = await query_llm(prompt)
-                conversation.conversation_id = str(uuid.uuid4())
-                conversation_entity = {
-                    "PartitionKey": "conversations",
-                    "RowKey": conversation.conversation_id,
-                    "username": conversation.username,
-                    "description": conversation.description,
-                    "conversation_id": conversation.conversation_id
-                }
-                if conversation.description is None:
-                    conversation.description = "No description provided"
-                convo_entity = self.conversations_table.create_entity(entity=conversation_entity)
+                conversation_entity = await self.create_conversation(conversation)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
+
+        # update the project's updated_at field with the current timestamp
+        if conversation.project_id is not None:
+            project = await self.project_service.get_project(conversation.project_id)
+            project.updated_at = datetime.now().isoformat()
+            await self.project_service.save_project(project)
 
         messages_without_id = [message for message in conversation.messages if message.message_id is None]
 
@@ -54,6 +45,25 @@ class ConversationService:
             await self.save_message(message, conversation.conversation_id)
         
         return conversation
+    
+    async def create_conversation(self, conversation: Conversation):
+        first_message = conversation.messages[0].content
+        prompt = f"Generate a short description for the following conversation. This description \
+        will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
+        conversation.description = await query_llm(prompt)
+        conversation.conversation_id = str(uuid.uuid4())
+        conversation_entity = {
+            "PartitionKey": "conversations",
+            "RowKey": conversation.conversation_id,
+            "username": conversation.username,
+            "description": conversation.description,
+            "conversation_id": conversation.conversation_id,
+            "project_id": conversation.project_id
+        }
+        if conversation.description is None:
+            conversation.description = "No description provided"
+        convo_entity = self.conversations_table.create_entity(entity=conversation_entity)
+        return convo_entity
 
     async def save_message(self, message: Message, conversation_id: str):
         message.message_id = str(uuid.uuid4())
@@ -68,8 +78,16 @@ class ConversationService:
             "message_id": message.message_id
         }
         try:
-            context_names = [await self.context_service.save_context(context, message.message_id) for context in message.contexts]
-            message_entity['contexts'] = json.dumps(context_names)
+            # Save contexts and get their IDs
+            saved_contexts = []
+            for context in message.contexts:
+                saved_context = await self.context_service.save_context(
+                    context, 
+                    message_id=message.message_id
+                )
+                saved_contexts.append(saved_context.context_id)
+            
+            message_entity['contexts'] = json.dumps(saved_contexts)
             entity = self.messages_table.create_entity(entity=message_entity)
             return entity
         except Exception as e:
@@ -109,15 +127,20 @@ class ConversationService:
             
         return result
 
+    async def get_conversations_by_project_id(self, project_id: str) -> List[Conversation]:
+        filter_query = f"PartitionKey eq 'conversations' and project_id eq '{project_id}'"
+        conversations = self.conversations_table.query_entities(filter_query)
+        return [Conversation(**conversation) for conversation in conversations]
+    
     async def get_messages_by_conversation_id(self, conversation_id: str) -> List[Message]:
         filter_query = f"PartitionKey eq 'messages' and conversation_id eq '{conversation_id}'"
         messages = self.messages_table.query_entities(filter_query)
         result = []
         for message in messages:
-            blob_names = json.loads(message['contexts'])
+            context_ids = json.loads(message['contexts'])
             contexts = []
-            for blob_name in blob_names:
-                context = await self.context_service.get_context(message['message_id'], blob_name)
+            for context_id in context_ids:
+                context = await self.context_service.get_context(context_id)
                 contexts.append(context)
             message['contexts'] = contexts
             result.append(Message(**message))

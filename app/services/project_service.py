@@ -25,8 +25,6 @@ class ProjectService:
             "RowKey": project.project_id,
             "name": project.name,
             "description": project.description,
-            "contexts": [await self.context_service.save_context(context, project.project_id) for context in project.contexts],
-            "conversations": project.conversations,
             "username": project.username,
             "is_public": project.is_public
         }
@@ -38,16 +36,18 @@ class ProjectService:
 
     async def get_project(self, project_id: str) -> Project:
         try:
-            project_entity = self.projects_table.get_entity(partition_key="projects", row_key=project_id)
-            contexts = [await self.context_service.get_context(project_id, context_name) for context_name in project_entity.get('contexts', [])]
+            project_entity = self.projects_table.get_entity(partition_key="projects", row_key=project_id)            
+            project_conversations = await self.conversation_service.get_conversations_by_project_id(project_id)
+            project_contexts = await self.context_service.get_contexts_by_project_id(project_id)
+            
             return Project(
                 project_id=project_entity['RowKey'],
                 name=project_entity['name'],
                 description=project_entity.get('description', ''),
-                contexts=contexts,
-                conversations=project_entity.get('conversations', []),
                 username=project_entity.get('username'),
-                is_public=project_entity.get('is_public', False)
+                is_public=project_entity.get('is_public', False),
+                contexts=project_contexts,
+                conversations=project_conversations
             )
         except Exception as e:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -82,8 +82,6 @@ class ProjectService:
                 project_id=entity['RowKey'],
                 name=entity['name'],
                 description=entity.get('description', ''),
-                contexts=entity.get('contexts', []),
-                conversations=entity.get('conversations', []),
                 username=entity.get('username'),
                 is_public=entity.get('is_public', False)
             ) for entity in projects]

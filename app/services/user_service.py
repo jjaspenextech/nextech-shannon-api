@@ -2,7 +2,7 @@ import jwt
 import datetime
 from azure.data.tables import TableServiceClient, UpdateMode
 from config import Config
-from models.chat import User, Message, Conversation
+from models import User, Message, Conversation
 from fastapi import HTTPException
 import bcrypt
 from typing import List
