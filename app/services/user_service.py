@@ -24,7 +24,7 @@ class UserService:
     def create_jwt_token(self, username: str) -> str:
         payload = {
             "username": username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24*15)
         }
         return jwt.encode(payload, self.secret_key, algorithm="HS256")
 
