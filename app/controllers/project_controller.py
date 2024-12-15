@@ -9,6 +9,7 @@ project_service = ProjectService()
 @router.post("/project/")
 async def create_project(project: Project, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
+        project.username = project.username if project.username else token_data.get("username")
         return await project_service.create_project(project)
     except HTTPException as e:
         raise e

@@ -5,6 +5,7 @@ from config import Config
 import uuid
 from typing import List
 from services.context_service import ContextService
+from services.conversation_service import ConversationService
 
 class ProjectService:
     def __init__(self):
@@ -17,6 +18,7 @@ class ProjectService:
         self.table_service = TableServiceClient.from_connection_string(connection_string)
         self.projects_table = self.table_service.get_table_client(Config.AZURE_STORAGE_PROJECTS_TABLE_NAME)
         self.context_service = ContextService()
+        self.conversation_service = ConversationService()
 
     async def create_project(self, project: Project) -> Project:
         project.project_id = str(uuid.uuid4())
