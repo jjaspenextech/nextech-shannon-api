@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from models import Conversation
 from services.conversation_service import ConversationService
-from services.auth_service import verify_jwt_token
+from services.auth_service import AuthService
 
 router = APIRouter()
 
 @router.post("/conversation/")
-async def save_conversation(conversation: Conversation, token_data: dict = Depends(verify_jwt_token)):
+async def save_conversation(conversation: Conversation, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         conversation_service = ConversationService()
         saved_conversation = await conversation_service.save_conversation(conversation)
@@ -15,7 +15,7 @@ async def save_conversation(conversation: Conversation, token_data: dict = Depen
         raise e
 
 @router.get("/conversation/{conversation_id}")
-async def get_conversation(conversation_id: str, token_data: dict = Depends(verify_jwt_token)):
+async def get_conversation(conversation_id: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         conversation_service = ConversationService()
         conversation = await conversation_service.get_conversation(conversation_id)
@@ -25,7 +25,7 @@ async def get_conversation(conversation_id: str, token_data: dict = Depends(veri
 
         
 @router.get("/conversations/{username}")
-async def get_conversations(username: str, token_data: dict = Depends(verify_jwt_token)):
+async def get_conversations(username: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         conversation_service = ConversationService()
         # Optional: Verify that the requesting user matches the username

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from services.user_service import UserService
 from models.chat import ApiKeyUpdate
-from services.auth_service import verify_jwt_token
+from services.auth_service import AuthService
 
 router = APIRouter()
 user_service = UserService()
@@ -18,7 +18,7 @@ async def login(credentials: dict = Body(...)):
         raise e
 
 @router.get("/user-info/")
-async def get_user_info(token_data: dict = Depends(verify_jwt_token)):
+async def get_user_info(token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         username = token_data.get("username")
         user_info = user_service.get_user_info(username)
@@ -41,7 +41,7 @@ async def signup(user_data: dict = Body(...)):
         raise e
 
 @router.post("/api-keys/update")
-async def update_api_key(key_update: ApiKeyUpdate, token_data: dict = Depends(verify_jwt_token)):
+async def update_api_key(key_update: ApiKeyUpdate, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         username = token_data.get("username")
         return user_service.update_api_key(username, key_update.service, key_update.key)
@@ -49,7 +49,7 @@ async def update_api_key(key_update: ApiKeyUpdate, token_data: dict = Depends(ve
         raise e
 
 @router.get("/api-keys")
-async def get_api_keys(token_data: dict = Depends(verify_jwt_token)):
+async def get_api_keys(token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         username = token_data.get("username")
         return user_service.get_api_keys(username)

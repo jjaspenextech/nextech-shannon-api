@@ -19,3 +19,5 @@ class Config:
     AZURE_STORAGE_CONTEXTS_TABLE_NAME = "contexts"
     AZURE_STORAGE_CONTEXTS_BLOB_CONTAINER = "contexts"
     AZURE_STORAGE_CONVERSATIONS_TABLE_NAME = "conversations"
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    TOKEN_DURATION = os.getenv("TOKEN_DURATION")
