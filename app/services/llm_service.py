@@ -8,32 +8,38 @@ import math
 logger = setup_logger(__name__)
 MAX_TOKENS = 8000
 
-def build_message_context(message: Message, ignore_contexts: bool = False):
-    context_str = "\nContexts: " + ", ".join(
-        [f"{context.type}: {context.content}" for context in message.contexts]
-    ) if message.contexts else ""
+def build_message_context(message: Message, project_contexts: list = None, ignore_contexts: bool = False):
+    context_parts = []
+    if project_contexts and not ignore_contexts:
+        context_parts.extend([f"{ctx.type}: {ctx.content}" for ctx in project_contexts])
+    
+    if message.contexts and not ignore_contexts:
+        context_parts.extend([f"{context.type}: {context.content}" for context in message.contexts])
+    
+    context_str = "\nContexts: " + ", ".join(context_parts) if context_parts else ""
+    
     return {
         "role": message.role,
         "content": f"{message.content}{context_str}" if not ignore_contexts else message.content
     }
 
-def build_contexts(messages: list[Message], max_tokens: int) -> list[str]:
+def build_contexts(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
     contexts = []
     max_input_tokens = math.floor(max_tokens*0.9)
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
+    
     for message in messages_sorted_by_sequence_desc:
-        msg_str = build_message_context(message)
+        msg_str = build_message_context(message, project_contexts)
         if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
-            msg_str = build_message_context(message, ignore_contexts=True)
+            msg_str = build_message_context(message, project_contexts, ignore_contexts=True)
             if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
                 break
-        # add to the front of the list
         contexts.insert(0, msg_str)
     
     return contexts
 
-async def get_query_params(messages: list[Message], stream: bool = False):    
-    chat_messages = build_contexts(messages, MAX_TOKENS)
+async def get_query_params(messages: list[Message], project_contexts: list = None, stream: bool = False):    
+    chat_messages = build_contexts(messages, project_contexts, MAX_TOKENS)
     # Add system message if not present
     if not any(msg['role'] == 'system' for msg in chat_messages):
         chat_messages.insert(0, {
@@ -75,10 +81,10 @@ async def chat_with_llm(messages: list[Message]):
         contents = json.loads(response.text)
         return contents['choices'][0]['message']['content']
 
-async def chat_with_llm_stream(messages: list[Message]):
+async def chat_with_llm_stream(messages: list[Message], project_contexts: list = None):
     logger.info(f"Starting streaming response for chat with {len(messages)} messages")
     
-    headers, payload, url = await get_query_params(messages, stream=True)
+    headers, payload, url = await get_query_params(messages, project_contexts, stream=True)
     
     async with httpx.AsyncClient() as client:
         async with client.stream('POST', url, headers=headers, json=payload) as response:

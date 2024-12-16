@@ -4,6 +4,7 @@ from .message import Message
 
 class ChatRequest(BaseModel):
     messages: List[Message]
+    project_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
