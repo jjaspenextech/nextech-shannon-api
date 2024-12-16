@@ -20,6 +20,7 @@ class UserService:
         )
         self.table_service = TableServiceClient.from_connection_string(connection_string)
         self.users_table = self.table_service.get_table_client(Config.AZURE_STORAGE_USERS_TABLE_NAME)
+        self.signup_codes_table = self.table_service.get_table_client(Config.AZURE_STORAGE_SIGNUP_CODES_TABLE_NAME)
 
     def get_current_user(self, token_data: dict = Depends(AuthService.verify_jwt_token)):
         return self.get_user_info(token_data['username'])
@@ -69,7 +70,7 @@ class UserService:
         user = User(username=username, password=hashed_password, api_keys={})
         self.users_table.create_entity(entity=user.dict()) 
 
-    def signup_user(self, username: str, password: str, email: str, first_name: str, last_name: str):
+    def create_user(self, username: str, password: str, email: str, first_name: str, last_name: str):
         try:
             # Check if the user already exists
             existing_user = self.users_table.get_entity(partition_key="users", row_key=username)
@@ -85,8 +86,24 @@ class UserService:
                 "first_name": first_name,
                 "last_name": last_name
             }
-            # Insert the user into Azure Table Storage
-            self.users_table.create_entity(entity=user_entity) 
+            user = User(
+                username=user_entity.get("RowKey"),
+                password=user_entity.get("password"),
+                email=user_entity.get("email"),
+                first_name=user_entity.get("first_name"),
+                last_name=user_entity.get("last_name")
+            )
+            return user
+
+    async def get_user_token(self,user:User):
+        token = AuthService.create_jwt_token(user.username)
+        return {
+            "token": token,
+            "username": user.username,
+            "email": user.email,
+            "firstName": user.first_name,
+            "lastName": user.last_name
+        }
 
     async def save_conversation(self, conversation: Conversation):
         # Check if the conversation is new
@@ -147,3 +164,10 @@ class UserService:
             return api_keys
         except Exception as e:
             raise HTTPException(status_code=404, detail="User not found") 
+
+    def validate_signup_code(self, code: str) -> bool:
+        try:
+            signup_code_entity = self.signup_codes_table.get_entity(partition_key="signupCodes", row_key=code)
+            return True
+        except Exception as e:
+            return False

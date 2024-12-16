@@ -26,20 +26,6 @@ async def get_user_info(token_data: dict = Depends(AuthService.verify_jwt_token)
     except HTTPException as e:
         raise e
 
-@router.post("/signup/")
-async def signup(user_data: dict = Body(...)):
-    try:
-        username = user_data.get("username")
-        password = user_data.get("password")
-        email = user_data.get("email")
-        first_name = user_data.get("firstName")
-        last_name = user_data.get("lastName")
-        
-        user_service.signup_user(username, password, email, first_name, last_name)
-        return {"message": "User created successfully"}
-    except HTTPException as e:
-        raise e
-
 @router.post("/api-keys/update")
 async def update_api_key(key_update: ApiKeyUpdate, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:

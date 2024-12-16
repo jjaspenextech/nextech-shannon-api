@@ -17,23 +17,26 @@ async def login(credentials: dict = Body(...)):
         raise e
 
 @router.post("/signup/")
-async def signup(user_data: SignupRequest):
+async def signup(user_data: dict = Body(...)):
     try:
+        signup_code = user_data.get("signupCode")
+
         # Validate signup code first
-        if not user_service.validate_signup_code(user_data.signup_code):
+        if not user_service.validate_signup_code(signup_code):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid signup code"
             )
         
         # If code is valid, proceed with user creation
-        user_service.signup_user(
-            user_data.username,
-            user_data.password,
-            user_data.email,
-            user_data.first_name,
-            user_data.last_name
+        user = user_service.create_user(
+            user_data.get("username"),
+            user_data.get("password"),
+            user_data.get("email"),
+            user_data.get("firstName"),
+            user_data.get("lastName")
         )
-        return {"message": "User created successfully"}
+        token = await user_service.get_user_token(user)
+        return token
     except HTTPException as e:
         raise e 
