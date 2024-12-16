@@ -1,4 +1,5 @@
 from azure.data.tables import TableServiceClient, UpdateMode
+from azure.core.exceptions import ResourceNotFoundError
 from fastapi import HTTPException
 from models import Project, Context, Conversation
 from config import Config
@@ -26,7 +27,9 @@ class ProjectService:
             name=entity['name'],
             description=entity.get('description', ''),
             username=entity.get('username'),
-            is_public=entity.get('is_public', False)
+            is_public=entity.get('is_public', False),
+            contexts=[],
+            conversations=[]
         )
 
     async def create_project(self, project: Project) -> Project:
@@ -48,14 +51,13 @@ class ProjectService:
     async def get_project(self, project_id: str) -> Project:
         try:
             project_entity = self.projects_table.get_entity(partition_key="projects", row_key=project_id)            
-            project_conversations = await self.conversation_service.get_conversations_by_project_id(project_id)
-            project_contexts = await self.context_service.get_contexts_by_project_id(project_id)
-            
             project = self.create_project_from_entity(project_entity)
-            project.contexts = project_contexts
-            project.conversations = project_conversations
+            
+            project.contexts = await self.context_service.get_contexts_by_project_id(project_id)
+            project.conversations = await self.conversation_service.get_conversations_by_project_id(project_id)
+            
             return project
-        except Exception as e:
+        except ResourceNotFoundError as e:
             raise HTTPException(status_code=404, detail="Project not found")
 
     async def update_project(self, project: Project) -> Project:

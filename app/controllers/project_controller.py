@@ -2,9 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from models.project import Project
 from services.project_service import ProjectService
 from services.auth_service import AuthService
+from services.conversation_service import ConversationService
 
 router = APIRouter()
 project_service = ProjectService()
+conversation_service = ConversationService()
 
 @router.post("/project/")
 async def create_project(project: Project, token_data: dict = Depends(AuthService.verify_jwt_token)):
@@ -55,5 +57,14 @@ async def list_user_projects(token_data: dict = Depends(AuthService.verify_jwt_t
 async def list_public_projects(token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         return await project_service.list_public_projects()
+    except HTTPException as e:
+        raise e
+
+@router.get("/projects/{project_id}/conversations")
+async def get_project_conversations(project_id: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
+    """Get all conversations for a specific project"""
+    try:
+        conversations = await conversation_service.get_conversations_by_project_id(project_id)
+        return conversations
     except HTTPException as e:
         raise e 

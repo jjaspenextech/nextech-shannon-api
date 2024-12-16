@@ -33,12 +33,6 @@ class ConversationService:
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
-        # update the project's updated_at field with the current timestamp
-        if conversation.project_id is not None:
-            project = await self.project_service.get_project(conversation.project_id)
-            project.updated_at = datetime.now().isoformat()
-            await self.project_service.save_project(project)
-
         messages_without_id = [message for message in conversation.messages if message.message_id is None]
 
         # Save each message separately using MessageService
@@ -101,6 +95,30 @@ class ConversationService:
         return result
 
     async def get_conversations_by_project_id(self, project_id: str) -> List[Conversation]:
-        filter_query = f"PartitionKey eq 'conversations' and project_id eq '{project_id}'"
-        conversations = self.conversations_table.query_entities(filter_query)
-        return [Conversation(**conversation) for conversation in conversations]
+        try:
+            # Query conversations table for all conversations with this project_id
+            conversations = self.conversations_table.query_entities(
+                f"PartitionKey eq 'conversations' and project_id eq '{project_id}'"
+            )
+            
+            # Convert entities to Conversation objects and include messages
+            result = []
+            for conv in conversations:
+                conversation = self.create_conversation_from_entity(conv)
+                # Get messages for this conversation
+                messages = await self.message_service.get_messages_by_conversation_id(conversation.conversation_id)
+                conversation.messages = messages
+                result.append(conversation)
+                
+            return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def create_conversation_from_entity(self, entity: dict) -> Conversation:
+        return Conversation(
+            conversation_id=entity['RowKey'],
+            project_id=entity.get('project_id'),
+            username=entity.get('username'),
+            description=entity.get('description', ''),
+            messages=[]  # Will be populated separately
+        )
