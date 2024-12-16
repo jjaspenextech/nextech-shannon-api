@@ -34,14 +34,15 @@ cd api/infrastructure
 Deploy the Python API (interactive mode)
 
 ```bash
-.\deploy-python-api.ps1
+.\deploy-python-api.ps1 -siteName "your-api-name" -resourceGroup "your-resource-group-name"
 ```
 
-Or specify parameters directly
+Deploy the Azure Storage Tables
 
 ```bash
-.\deploy-python-api.ps1 -siteName "your-api-name" -allowedOrigins @("https://your-web-ui.azurewebsites.net")
+.\deploy-storage-resources.ps1 -storageAccountName "your-storage-account-name" -resourceGroup "your-resource-group-name"
 ```
+
 ## Local Development
 
 1. Create a virtual environment:

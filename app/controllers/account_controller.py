@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, status
 from services.user_service import UserService
+from models.chat import SignupRequest
 
 router = APIRouter()
 user_service = UserService()
@@ -18,13 +19,24 @@ async def login(credentials: dict = Body(...)):
 @router.post("/signup/")
 async def signup(user_data: dict = Body(...)):
     try:
-        username = user_data.get("username")
-        password = user_data.get("password")
-        email = user_data.get("email")
-        first_name = user_data.get("firstName")
-        last_name = user_data.get("lastName")
+        signup_code = user_data.get("signupCode")
+
+        # Validate signup code first
+        if not user_service.validate_signup_code(signup_code):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid signup code"
+            )
         
-        user_service.signup_user(username, password, email, first_name, last_name)
-        return {"message": "User created successfully"}
+        # If code is valid, proceed with user creation
+        user = user_service.create_user(
+            user_data.get("username"),
+            user_data.get("password"),
+            user_data.get("email"),
+            user_data.get("firstName"),
+            user_data.get("lastName")
+        )
+        token = await user_service.get_user_token(user)
+        return token
     except HTTPException as e:
         raise e 

@@ -1,15 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends
 from integrations.jira import JiraIntegration
-from services.auth_service import verify_jwt_token, get_current_user
 from models.chat import User
+from services.user_service import UserService
 
 router = APIRouter()
 jira_integration = JiraIntegration()
+user_service = UserService()
 
 @router.get("/jira/story/{story_key}")
 async def get_story_description(
     story_key: str, 
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(user_service.get_current_user)
 ):
     try:
         description = jira_integration.get_story_description(story_key, current_user)
