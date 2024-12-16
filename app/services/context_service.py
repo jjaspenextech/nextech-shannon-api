@@ -36,6 +36,7 @@ class ContextService:
             context_entity = {
                 "PartitionKey": "contexts",
                 "RowKey": context.context_id,
+                "name": context.name,
                 "type": context.type,
                 "blob_name": blob_name,
                 "message_id": context.message_id,
@@ -86,7 +87,8 @@ class ContextService:
                     content=context_data['content'],
                     message_id=entity.get('message_id'),
                     project_id=entity['project_id'],
-                    blob_name=entity['blob_name']
+                    blob_name=entity['blob_name'],
+                    name=entity.get('name')
                 ))
                 
             return contexts
@@ -105,6 +107,7 @@ class ContextService:
                 contexts.append(Context(
                     context_id=entity['RowKey'],
                     type=entity['type'],
+                    name=entity.get('name'),
                     content=context_data['content'],
                     message_id=entity['message_id'],
                     project_id=entity.get('project_id'),
@@ -112,5 +115,14 @@ class ContextService:
                 ))
                 
             return contexts
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def delete_context(self, context_id: str):
+        try:
+            # get it first so we can delete the blob
+            context = await self.get_context(context_id)
+            self.contexts_table.delete_entity(partition_key="contexts", row_key=context_id)
+            self.contexts_blob_container.delete_blob(context.blob_name)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

@@ -3,6 +3,7 @@ from typing import Optional
 
 class Context(BaseModel):
     context_id: Optional[str] = None
+    name: Optional[str] = None
     type: str
     content: str
     error: Optional[str] = None

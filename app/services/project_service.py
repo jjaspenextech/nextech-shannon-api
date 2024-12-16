@@ -82,6 +82,9 @@ class ProjectService:
             for context in contexts:
                 if context.context_id not in [existing_context.context_id for existing_context in existing_contexts]:
                     await self.context_service.save_context(context)
+            for existing_context in existing_contexts:
+                if existing_context.context_id not in [context.context_id for context in contexts]:
+                    await self.context_service.delete_context(existing_context.context_id)
             return contexts
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
