@@ -33,14 +33,12 @@ class MessageService:
         }
         try:
             # Save contexts and get their IDs
-            saved_contexts = []
-            for context in message.contexts:
-                saved_context = await self.context_service.save_context(
-                    context, 
-                    message_id=message.message_id
-                )
-                saved_contexts.append(saved_context.context_id)
             entity = self.messages_table.create_entity(entity=message_entity)
+            existing_contexts = await self.context_service.get_contexts_by_message_id(message.message_id)
+            # add new contexts to the message
+            for context in message.contexts:
+                if context.context_id not in [existing_context.context_id for existing_context in existing_contexts]:
+                    await self.context_service.save_context(context)
             return entity
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

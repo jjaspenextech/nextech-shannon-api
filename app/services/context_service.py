@@ -20,10 +20,8 @@ class ContextService:
         self.contexts_blob_service = BlobServiceClient.from_connection_string(connection_string)
         self.contexts_blob_container = self.contexts_blob_service.get_container_client(Config.AZURE_STORAGE_CONTEXTS_BLOB_CONTAINER)
 
-    async def save_context(self, context: Context, message_id: str = None, project_id: str = None) -> str:
+    async def save_context(self, context: Context) -> str:
         context.context_id = str(uuid.uuid4())
-        context.message_id = message_id
-        context.project_id = project_id
         
         # Save to blob storage
         blob_name = f"{context.context_id}.json"
@@ -40,8 +38,8 @@ class ContextService:
                 "RowKey": context.context_id,
                 "type": context.type,
                 "blob_name": blob_name,
-                "message_id": message_id,
-                "project_id": project_id
+                "message_id": context.message_id,
+                "project_id": context.project_id
             }
             self.contexts_table.create_entity(entity=context_entity)
             
