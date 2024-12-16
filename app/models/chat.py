@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Literal, Dict, Optional
 from .message import Message
+from datetime import datetime
 
 class ChatRequest(BaseModel):
     messages: List[Message]

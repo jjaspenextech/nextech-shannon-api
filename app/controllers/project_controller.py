@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.project import Project
-from services.project_service import ProjectService
-from services.auth_service import AuthService
-from services.conversation_service import ConversationService
+from models import Project
+from services import ProjectService, ConversationService, AuthService
+from datetime import datetime
 
 router = APIRouter()
 project_service = ProjectService()
@@ -61,10 +60,24 @@ async def list_public_projects(token_data: dict = Depends(AuthService.verify_jwt
         raise e
 
 @router.get("/projects/{project_id}/conversations")
-async def get_project_conversations(project_id: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
-    """Get all conversations for a specific project"""
+async def get_project_conversations(
+    project_id: str,
+    token_data: dict = Depends(AuthService.verify_jwt_token)
+):
     try:
-        conversations = await conversation_service.get_conversations_by_project_id(project_id)
-        return conversations
-    except HTTPException as e:
-        raise e 
+        return await conversation_service.get_conversations_by_project_id(project_id, include_messages=True)
+    except Exception as e:
+        logger.error(f"Error getting conversations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+
+@router.get("/projects/{project_id}/conversation-summaries")
+async def get_project_conversations(
+    project_id: str,
+    token_data: dict = Depends(AuthService.verify_jwt_token)
+):
+    try:
+        return await conversation_service.get_conversations_by_project_id(project_id, include_messages=False)
+    except Exception as e:
+        logger.error(f"Error getting conversations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 

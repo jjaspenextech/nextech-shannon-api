@@ -32,6 +32,12 @@ class ConversationService:
                 conversation_entity = await self.create_conversation(conversation)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
+        else:
+            try:
+                conversation.updated_at = datetime.now().isoformat()
+                conversation_entity = await self.update_conversation(conversation)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
 
         messages_without_id = [message for message in conversation.messages if message.message_id is None]
 
@@ -53,11 +59,25 @@ class ConversationService:
             "username": conversation.username,
             "description": conversation.description,
             "conversation_id": conversation.conversation_id,
-            "project_id": conversation.project_id
+            "project_id": conversation.project_id,
+            "updated_at": conversation.updated_at
         }
         if conversation.description is None:
             conversation.description = "No description provided"
         convo_entity = self.conversations_table.create_entity(entity=conversation_entity)
+        return convo_entity
+
+    async def update_conversation(self, conversation: Conversation):
+        conversation_entity = {
+            "PartitionKey": "conversations",
+            "RowKey": conversation.conversation_id,
+            "username": conversation.username,
+            "description": conversation.description,
+            "conversation_id": conversation.conversation_id,
+            "project_id": conversation.project_id,
+            "updated_at": conversation.updated_at
+        }
+        convo_entity = self.conversations_table.update_entity(entity=conversation_entity, mode=UpdateMode.MERGE)
         return convo_entity
 
     async def get_conversation(self, conversation_id: str) -> Conversation:
@@ -94,20 +114,21 @@ class ConversationService:
             
         return result
 
-    async def get_conversations_by_project_id(self, project_id: str) -> List[Conversation]:
+    async def get_conversations_by_project_id(self, project_id: str, include_messages: bool = True) -> List[Conversation]:
         try:
             # Query conversations table for all conversations with this project_id
             conversations = self.conversations_table.query_entities(
                 f"PartitionKey eq 'conversations' and project_id eq '{project_id}'"
             )
             
-            # Convert entities to Conversation objects and include messages
+            # Convert entities to Conversation objects and include messages if requested
             result = []
             for conv in conversations:
                 conversation = self.create_conversation_from_entity(conv)
-                # Get messages for this conversation
-                messages = await self.message_service.get_messages_by_conversation_id(conversation.conversation_id)
-                conversation.messages = messages
+                if include_messages:
+                    # Get messages for this conversation
+                    messages = await self.message_service.get_messages_by_conversation_id(conversation.conversation_id)
+                    conversation.messages = messages
                 result.append(conversation)
                 
             return result
