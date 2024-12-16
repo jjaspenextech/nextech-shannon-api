@@ -29,3 +29,11 @@ class ApiKeyUpdate(BaseModel):
 
 class ApiKeys(BaseModel):
     jira: Optional[str] = None 
+
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+    email: str
+    first_name: str
+    last_name: str
+    signup_code: str  # New field
