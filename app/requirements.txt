@@ -1,0 +1,10 @@
+fastapi
+httpx
+uvicorn[standard]  # For running the FastAPI server
+python-dotenv
+azure-data-tables
+azure-storage-blob
+pyjwt
+bcrypt
+beautifulsoup4
+requests
