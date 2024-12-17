@@ -10,7 +10,7 @@
         },
         "location": {
             "type": "string",
-            "defaultValue": "eastus",
+            "defaultValue": "eastus2",
             "metadata": {
                 "description": "Location for the storage account"
             }

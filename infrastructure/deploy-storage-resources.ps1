@@ -6,7 +6,7 @@ param(
     [string]$resourceGroup,
 
     [Parameter(Mandatory=$false)]
-    [string]$location = "eastus",
+    [string]$location = "eastus2",
 
     [Parameter(Mandatory=$false)]
     [string]$skuName = "Standard_LRS"
@@ -51,4 +51,4 @@ if ($?) {
 }
 
 # example of running the script
-# .\deploy-storage-resources.ps1 -storageAccountName "shannonstorage" -resourceGroup "nextech-shannon-rg" -location "eastus"
+# .\deploy-storage-resources.ps1 -storageAccountName "shannonstorage" -resourceGroup "nextech-shannon-rg" -location "eastus2"

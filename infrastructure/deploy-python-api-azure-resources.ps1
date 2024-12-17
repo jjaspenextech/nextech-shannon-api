@@ -9,7 +9,10 @@ param(
     [string]$allowedOrigins,
 
     [Parameter(Mandatory=$false)]
-    [string]$sku = "F1"
+    [string]$sku = "F1",
+
+    [Parameter(Mandatory=$false)]
+    [string]$location = "eastus2"
 )
 
 # Import utility functions
@@ -37,38 +40,25 @@ Write-Output "sku: $sku"
 Write-Output "allowedOrigins: $allowedOrigins"
 
 # Get or create resource group and plan
-$resourceGroup = Get-OrCreateResourceGroup -resourceGroupName $resourceGroup
-
-# wait for the resource group to be ready, maximum 2 minutes
-$maxAttempts = 120/5
-$attempt = 0
-while (-not (Get-AzResourceGroup -Name $resourceGroup -ErrorAction SilentlyContinue)) {
-    Write-Host "Waiting for resource group '$resourceGroup' to be ready..."
-    Start-Sleep -Seconds 5
-    $attempt++
-    if ($attempt -ge $maxAttempts) {
-        Write-Host "Resource group '$resourceGroup' did not become ready within the timeout period."
-        exit 1
-    }
+$resourceGroup = Get-OrCreateResourceGroup -resourceGroupName $resourceGroup -location $location
+if (-not $resourceGroup) {
+    Write-Host "Failed to create the resource group. Exiting..."
+    exit 1
 }
 
 $planName = if ($env:CUSTOM_PLAN_NAME) { $env:CUSTOM_PLAN_NAME } else { "$($siteName)-plan" }
 $planName = Get-OrCreateAppServicePlan -planName $planName -resourceGroup $resourceGroup -sku $sku -kind "linux"
-
-# wait for the app service plan to be ready, maximum 2 minutes
-$attempt = 0
-while (-not (Get-AzAppServicePlan -Name $planName -ResourceGroupName $resourceGroup -ErrorAction SilentlyContinue)) {
-    Write-Host "Waiting for app service plan '$planName' to be ready..."
-    Start-Sleep -Seconds 5
-    $attempt++
-    if ($attempt -ge $maxAttempts) {
-        Write-Host "App service plan '$planName' did not become ready within the timeout period."
-        exit 1
-    }
+if (-not $planName) {
+    Write-Host "Failed to create the App Service Plan. Exiting..."
+    exit 1
 }
-
+    
 # Fetch the resource ID of the App Service Plan
 $planResourceId = az resource show --resource-group $resourceGroup --name $planName --resource-type "Microsoft.Web/serverfarms" --query "id" -o tsv
+if (-not $planResourceId) {
+    Write-Host "Failed to fetch the resource ID of the App Service Plan. Exiting..."
+    exit 1
+}
 
 Write-Host "App Service Plan Resource ID: $planResourceId"
 

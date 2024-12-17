@@ -21,7 +21,7 @@
         },
         "location": {
             "type": "string",
-            "defaultValue": "East US",
+            "defaultValue": "eastus2",
             "metadata": {
                 "description": "Location for all resources"
             }
@@ -81,14 +81,13 @@
                     "appSettings": [
                         { "name": "AZURE_OPENAI_API_KEY", "value": "" },
                         { "name": "AZURE_OPENAI_URL", "value": "" },
-                        { "name": "AZURE_OPENAI_API_VERSION", "value": "" },
-                        { "name": "AZURE_OPENAI_MODEL", "value": "" },
-                        { "name": "AZURE_SUBSCRIPTION_ID", "value": "" },
-                        { "name": "AZURE_RESOURCE_GROUP", "value": "" },
+                        { "name": "AZURE_OPENAI_API_VERSION", "value": "2024-02-15-preview" },
+                        { "name": "AZURE_OPENAI_MODEL", "value": "gpt-4o" },
                         { "name": "AZURE_STORAGE_ACCOUNT_NAME", "value": "" },
                         { "name": "AZURE_STORAGE_ACCOUNT_KEY", "value": "" },
                         { "name": "SECRET_KEY", "value": "" },
-                        { "name": "TOKEN_DURATION", "value": "" }
+                        { "name": "TOKEN_DURATION", "value": "1" },
+                        { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true" }
                     ]
                 },
                 "scmSiteAlsoStopped": false,

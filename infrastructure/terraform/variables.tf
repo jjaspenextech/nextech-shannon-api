@@ -6,7 +6,7 @@ variable "project_name" {
 variable "location" {
   type        = string
   description = "Azure region for resources"
-  default     = "eastus"
+  default     = "eastus2"
 }
 
 variable "app_service_sku" {
