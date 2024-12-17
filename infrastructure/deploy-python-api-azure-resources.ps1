@@ -38,8 +38,34 @@ Write-Output "allowedOrigins: $allowedOrigins"
 
 # Get or create resource group and plan
 $resourceGroup = Get-OrCreateResourceGroup -resourceGroupName $resourceGroup
+
+# wait for the resource group to be ready, maximum 2 minutes
+$maxAttempts = 120/5
+$attempt = 0
+while (-not (Get-AzResourceGroup -Name $resourceGroup -ErrorAction SilentlyContinue)) {
+    Write-Host "Waiting for resource group '$resourceGroup' to be ready..."
+    Start-Sleep -Seconds 5
+    $attempt++
+    if ($attempt -ge $maxAttempts) {
+        Write-Host "Resource group '$resourceGroup' did not become ready within the timeout period."
+        exit 1
+    }
+}
+
 $planName = if ($env:CUSTOM_PLAN_NAME) { $env:CUSTOM_PLAN_NAME } else { "$($siteName)-plan" }
 $planName = Get-OrCreateAppServicePlan -planName $planName -resourceGroup $resourceGroup -sku $sku -kind "linux"
+
+# wait for the app service plan to be ready, maximum 2 minutes
+$attempt = 0
+while (-not (Get-AzAppServicePlan -Name $planName -ResourceGroupName $resourceGroup -ErrorAction SilentlyContinue)) {
+    Write-Host "Waiting for app service plan '$planName' to be ready..."
+    Start-Sleep -Seconds 5
+    $attempt++
+    if ($attempt -ge $maxAttempts) {
+        Write-Host "App service plan '$planName' did not become ready within the timeout period."
+        exit 1
+    }
+}
 
 # Fetch the resource ID of the App Service Plan
 $planResourceId = az resource show --resource-group $resourceGroup --name $planName --resource-type "Microsoft.Web/serverfarms" --query "id" -o tsv

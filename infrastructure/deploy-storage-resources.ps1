@@ -26,6 +26,12 @@ if (-not $storageAccountName) {
 # Get or create resource group
 $resourceGroup = Get-OrCreateResourceGroup -resourceGroupName $resourceGroup
 
+# wait for the resource group to be ready
+while (-not (Get-AzResourceGroup -Name $resourceGroup -ErrorAction SilentlyContinue)) {
+    Write-Host "Waiting for resource group '$resourceGroup' to be ready..."
+    Start-Sleep -Seconds 5
+}
+
 Write-Host "Deploying Storage Account '$storageAccountName'..."
 az deployment group create `
     --resource-group $resourceGroup `

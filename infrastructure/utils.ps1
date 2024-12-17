@@ -53,3 +53,21 @@ function Get-OrCreateAppServicePlan {
     }
     return $planName
 } 
+
+function Get-AzResourceGroup {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Name
+    )
+    return az group show --name $Name 2>$null
+}
+
+function Get-AzAppServicePlan {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Name,
+        [Parameter(Mandatory=$true)]
+        [string]$ResourceGroup
+    )
+    return az appservice plan show --name $Name --resource-group $ResourceGroup 2>$null
+}
