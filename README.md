@@ -34,7 +34,7 @@ cd api/infrastructure
 Deploy the Python API (interactive mode)
 
 ```bash
-.\deploy-python-api.ps1 -siteName "your-api-name" -resourceGroup "your-resource-group-name"
+.\deploy-python-api-azure-resources.ps1 -siteName "your-api-name" -resourceGroup "your-resource-group-name"
 ```
 
 Deploy the Azure Storage Tables
