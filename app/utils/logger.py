@@ -31,4 +31,6 @@ def setup_logger(name: str) -> logging.Logger:
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    return logger 
+    return logger
+
+logger = setup_logger(__name__)

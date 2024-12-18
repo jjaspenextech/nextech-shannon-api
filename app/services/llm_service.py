@@ -1,11 +1,10 @@
 import json
 import httpx
 from config import Config
-from utils.logger import setup_logger
+from utils.logger import logger
 from models.chat import Message
 from typing import Literal, Optional, List, Dict
 import math
-logger = setup_logger(__name__)
 MAX_TOKENS = 8000
 
 def build_message_context(message: Message, project_contexts: list = None, ignore_contexts: bool = False):

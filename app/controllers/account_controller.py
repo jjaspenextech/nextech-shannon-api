@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body, status
 from services.user_service import UserService
 from models.chat import SignupRequest
+from utils.logger import logger
 
 router = APIRouter()
 user_service = UserService()
@@ -29,6 +30,7 @@ async def signup(user_data: dict = Body(...)):
             )
         
         # If code is valid, proceed with user creation
+        logger.info(f"Creating user: {user_data}")
         user = user_service.create_user(
             user_data.get("username"),
             user_data.get("password"),

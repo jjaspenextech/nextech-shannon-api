@@ -10,6 +10,8 @@ import uuid
 from services.llm_service import query_llm
 from services.context_service import ContextService
 from services.message_service import MessageService
+from utils.logger import logger
+from datetime import datetime
 
 class ConversationService:
     def __init__(self):

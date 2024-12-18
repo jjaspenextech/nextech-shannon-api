@@ -3,10 +3,9 @@ from fastapi.responses import StreamingResponse
 from models.chat import ChatRequest, ChatResponse
 from services.llm_service import chat_with_llm_stream, query_llm
 from services import AuthService, ProjectService, ContextService
-from utils.logger import setup_logger
+from utils.logger import logger
 
 router = APIRouter()
-logger = setup_logger(__name__)
 
 @router.post("/llm-query/", response_model=ChatResponse)
 async def llm_query(request: ChatRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):

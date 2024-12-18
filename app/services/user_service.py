@@ -9,6 +9,7 @@ from services.llm_service import query_llm  # Import the LLM query function
 import json
 from services.auth_service import AuthService
 from fastapi import Depends
+from utils.logger import logger
 
 class UserService:
     def __init__(self):
@@ -65,11 +66,6 @@ class UserService:
         except Exception as e:
             raise HTTPException(status_code=404, detail="User not found")
 
-    def create_user(self, username: str, password: str):
-        hashed_password = AuthService.hash_password(password)
-        user = User(username=username, password=hashed_password, api_keys={})
-        self.users_table.create_entity(entity=user.dict()) 
-
     def create_user(self, username: str, password: str, email: str, first_name: str, last_name: str):
         try:
             # Check if the user already exists
@@ -84,8 +80,10 @@ class UserService:
                 "password": AuthService.hash_password(password),
                 "email": email,
                 "first_name": first_name,
-                "last_name": last_name
+                "last_name": last_name,
+                "api_keys": json.dumps({})
             }
+            self.users_table.create_entity(entity=user_entity)
             user = User(
                 username=user_entity.get("RowKey"),
                 password=user_entity.get("password"),
@@ -167,7 +165,16 @@ class UserService:
 
     def validate_signup_code(self, code: str) -> bool:
         try:
+            connection_string = (
+                f"DefaultEndpointsProtocol=https;"
+                f"AccountName={Config.AZURE_STORAGE_ACCOUNT_NAME};"
+                f"AccountKey={Config.AZURE_STORAGE_ACCOUNT_KEY};"
+                f"EndpointSuffix={Config.AZURE_STORAGE_ENDPOINT_SUFFIX}"
+            )
+            logger.info(f"Connection string: {connection_string}")
+            logger.info(f"Validating signup code: {code}")
             signup_code_entity = self.signup_codes_table.get_entity(partition_key="signupCodes", row_key=code)
             return True
         except Exception as e:
+            logger.error(f"Error validating signup code: {str(e)}")
             return False

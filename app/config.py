@@ -22,3 +22,8 @@ class Config:
     AZURE_STORAGE_SIGNUP_CODES_TABLE_NAME = "signupCodes"
     SECRET_KEY = os.getenv("SECRET_KEY")
     TOKEN_DURATION = os.getenv("TOKEN_DURATION")
+
+    @classmethod
+    def serialize(cls):
+        return {key: value for key, value in cls.__dict__.items() if not key.startswith('__') and not callable(value)}
+

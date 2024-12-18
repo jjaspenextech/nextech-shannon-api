@@ -7,14 +7,16 @@ from controllers.account_controller import router as account_router
 from controllers.llm_controller import router as llm_router
 from controllers.web_controller import router as web_router
 from controllers.project_controller import router as project_router
-from utils.logger import setup_logger
-
+from utils.logger import logger
+from config import Config
+import json
 app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],  # Angular dev server
+    # Angular allowed origins, controlled by azure deployment
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -32,4 +34,5 @@ app.include_router(project_router, prefix="/api")
 @app.get("/")
 async def root():
     logger.info("Health check endpoint called")
-    return {"message": "Welcome to the Enterprise LLM Chat API"}
+    # need to get print version of config
+    return {"message": "Welcome to the Enterprise LLM Chat API. Config:" + Config.AZURE_STORAGE_ACCOUNT_NAME}

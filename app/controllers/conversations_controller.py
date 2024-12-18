@@ -13,7 +13,7 @@ async def save_conversation(conversation: Conversation, token_data: dict = Depen
         saved_conversation = await conversation_service.save_conversation(conversation)        
 
         # update the project's updated_at field with the current timestamp
-        if conversation.project_id is not None:
+        if conversation.project_id is not None and conversation.project_id != "":
             project = await project_service.get_project(conversation.project_id)
             project.updated_at = datetime.now().isoformat()
             await project_service.update_project(project)

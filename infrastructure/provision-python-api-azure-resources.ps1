@@ -29,7 +29,7 @@ if (-not $siteName) {
 
 # if allow origins is not provided, set it to the site name
 if (-not $allowedOrigins) {
-    $allowedOrigins = "https://$($siteName).azurewebsites.net"
+    $allowedOrigins = "[https://$($siteName).azurewebsites.net]"
 }
 
 # Print the parameters for debugging
@@ -52,7 +52,7 @@ if (-not $planName) {
     Write-Host "Failed to create the App Service Plan. Exiting..."
     exit 1
 }
-    
+
 # Fetch the resource ID of the App Service Plan
 $planResourceId = az resource show --resource-group $resourceGroup --name $planName --resource-type "Microsoft.Web/serverfarms" --query "id" -o tsv
 if (-not $planResourceId) {

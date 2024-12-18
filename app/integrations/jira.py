@@ -6,17 +6,7 @@ from models.chat import User
 
 class JiraIntegration:
     def __init__(self):
-        self.api_token = os.getenv('JIRA_API_KEY')
         self.base_url = 'https://nextech.atlassian.net'
-        
-        if not self.api_token:
-            raise ValueError("JIRA_API_KEY environment variable is not set")
-
-    def _get_headers(self):
-        return {
-            "Authorization": f"Basic {self.api_token}",
-            "Content-Type": "application/json"
-        }
 
     def _make_request(self, method: str, endpoint: str, api_key: str, data: Optional[dict] = None) -> dict:
         """Make a request to the Jira API"""
