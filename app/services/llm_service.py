@@ -53,6 +53,7 @@ async def get_query_params(messages: list[Message], project_contexts: list = Non
         "api-key": Config.AZURE_OPENAI_API_KEY,
         "Content-Type": "application/json"
     }
+    logger.info(f"Headers: {headers}")
     
     payload = {
         "messages": chat_messages, 
@@ -64,14 +65,17 @@ async def get_query_params(messages: list[Message], project_contexts: list = Non
         payload["stream"] = True
     
     url = f"{Config.AZURE_OPENAI_URL}openai/deployments/{Config.AZURE_OPENAI_MODEL}/chat/completions?api-version={Config.AZURE_OPENAI_API_VERSION}"
-    
+    logger.info(f"URL: {url}")
+    logger.info(f"Payload: {payload}")
     return headers, payload, url
 
 async def query_llm(content: str):
+    logger.info(f"Querying LLM with content: {content}")
     messages = [Message(role="user", content=content)]
     return await chat_with_llm(messages)
 
 async def chat_with_llm(messages: list[Message]):
+    logger.info(f"Chatting with LLM with {len(messages)} messages")
     headers, payload, url = await get_query_params(messages)
     
     async with httpx.AsyncClient() as client:

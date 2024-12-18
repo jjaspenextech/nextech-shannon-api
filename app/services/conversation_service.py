@@ -29,22 +29,28 @@ class ConversationService:
         self.message_service = MessageService()
 
     async def save_conversation(self, conversation: Conversation):      
+        logger.info(f"Saving conversation: {conversation}")
         if conversation.conversation_id is None and conversation.messages is not None and len(conversation.messages) > 0:            
             try:
                 conversation_entity = await self.create_conversation(conversation)
+                logger.info(f"Created conversation: {conversation_entity}")
             except Exception as e:
+                logger.error(f"Error creating conversation: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         else:
             try:
                 conversation.updated_at = datetime.now().isoformat()
                 conversation_entity = await self.update_conversation(conversation)
+                logger.info(f"Updated conversation: {conversation_entity}")
             except Exception as e:
+                logger.error(f"Error updating conversation: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
         messages_without_id = [message for message in conversation.messages if message.message_id is None]
 
         # Save each message separately using MessageService
         for message in messages_without_id:
+            logger.info(f"Saving message: {message}")
             await self.message_service.save_message(message, conversation.conversation_id)
         
         return conversation
@@ -53,7 +59,9 @@ class ConversationService:
         first_message = conversation.messages[0].content
         prompt = f"Generate a short description for the following conversation. This description \
         will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
+        logger.info(f"Generating description for conversation: {prompt}")
         conversation.description = await query_llm(prompt)
+        logger.info(f"Generated description: {conversation.description}")
         conversation.conversation_id = str(uuid.uuid4())
         conversation_entity = {
             "PartitionKey": "conversations",
@@ -64,9 +72,11 @@ class ConversationService:
             "project_id": conversation.project_id,
             "updated_at": conversation.updated_at
         }
+        logger.info(f"Creating conversation entity: {conversation_entity}")
         if conversation.description is None:
             conversation.description = "No description provided"
         convo_entity = self.conversations_table.create_entity(entity=conversation_entity)
+        logger.info(f"Created conversation entity: {convo_entity}")
         return convo_entity
 
     async def update_conversation(self, conversation: Conversation):
