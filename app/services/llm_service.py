@@ -5,7 +5,7 @@ from utils.logger import logger
 from models.chat import Message
 from typing import Literal, Optional, List, Dict
 import math
-MAX_TOKENS = 8000
+MAX_TOKENS = Config.MAX_TOKENS
 
 def build_message_context(message: Message, project_contexts: list = None, ignore_contexts: bool = False):
     context_parts = []
@@ -37,8 +37,9 @@ def build_contexts(messages: list[Message], project_contexts: list = None, max_t
     
     return contexts
 
-async def get_query_params(messages: list[Message], project_contexts: list = None, stream: bool = False):    
-    chat_messages = build_contexts(messages, project_contexts, MAX_TOKENS)
+async def get_query_params(messages: list[Message], project_contexts: list = None, stream: bool = False): 
+    print(f"MAX_TOKENS: {MAX_TOKENS}")
+    chat_messages = build_contexts(messages, project_contexts, MAX_TOKENS or 8000)
     # Add system message if not present
     if not any(msg['role'] == 'system' for msg in chat_messages):
         chat_messages.insert(0, {
@@ -79,10 +80,17 @@ async def chat_with_llm(messages: list[Message]):
     headers, payload, url = await get_query_params(messages)
     
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        contents = json.loads(response.text)
-        return contents['choices'][0]['message']['content']
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            contents = json.loads(response.text)
+            return contents['choices'][0]['message']['content']
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            raise
 
 async def chat_with_llm_stream(messages: list[Message], project_contexts: list = None):
     logger.info(f"Starting streaming response for chat with {len(messages)} messages")
@@ -90,19 +98,26 @@ async def chat_with_llm_stream(messages: list[Message], project_contexts: list =
     headers, payload, url = await get_query_params(messages, project_contexts, stream=True)
     
     async with httpx.AsyncClient() as client:
-        async with client.stream('POST', url, headers=headers, json=payload) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if line.strip():
-                    if line.startswith('data: '):
-                        line = line[6:]
-                    if line != '[DONE]':
-                        try:
-                            chunk = json.loads(line)
-                            if chunk and 'choices' in chunk and chunk['choices']:
-                                content = chunk['choices'][0].get('delta', {}).get('content', '')
-                                if content:
-                                    yield content
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Error parsing chunk: {str(e)}")
-                            continue
+        try:
+            async with client.stream('POST', url, headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        if line.startswith('data: '):
+                            line = line[6:]
+                        if line != '[DONE]':
+                            try:
+                                chunk = json.loads(line)
+                                if chunk and 'choices' in chunk and chunk['choices']:
+                                    content = chunk['choices'][0].get('delta', {}).get('content', '')
+                                    if content:
+                                        yield content
+                            except json.JSONDecodeError as e:
+                                logger.error(f"Error parsing chunk: {str(e)}")
+                                continue
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error occurred during streaming: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"An error occurred during streaming: {str(e)}")
+            raise

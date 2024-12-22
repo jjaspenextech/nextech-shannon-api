@@ -10,4 +10,4 @@ class Message(BaseModel):
     contexts: List[Context] = []
     sequence: int = 0
     role: Literal['user', 'assistant', 'system']
-    timestamp: str = datetime.now().isoformat()
+    timestamp: str | datetime = datetime.now().isoformat()

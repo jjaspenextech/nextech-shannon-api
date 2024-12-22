@@ -19,7 +19,8 @@ class Config:
     AZURE_STORAGE_CONVERSATIONS_TABLE_NAME = "conversations"
     AZURE_STORAGE_SIGNUP_CODES_TABLE_NAME = "signupCodes"
     SECRET_KEY = os.getenv("SECRET_KEY")
-    TOKEN_DURATION = os.getenv("TOKEN_DURATION")
+    TOKEN_DURATION = int(os.getenv("TOKEN_DURATION", 0))
+    MAX_TOKENS = int(os.getenv("MAX_TOKENS", 0))
 
     @classmethod
     def serialize(cls):

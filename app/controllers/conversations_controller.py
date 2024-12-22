@@ -24,7 +24,11 @@ async def save_conversation(conversation: Conversation, token_data: dict = Depen
 
         return {"message": "Conversation and messages saved successfully", "conversation": saved_conversation}
     except HTTPException as e:
+        logger.error(f"Error saving conversation: {e}")
         raise e
+    except Exception as e:
+        logger.error(f"Unexpected error saving conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/conversation/{conversation_id}")
 async def get_conversation(conversation_id: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
@@ -35,8 +39,10 @@ async def get_conversation(conversation_id: str, token_data: dict = Depends(Auth
         return conversation
     except HTTPException as e:
         raise e 
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-        
 @router.get("/conversations/{username}")
 async def get_conversations(username: str, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
@@ -50,3 +56,6 @@ async def get_conversations(username: str, token_data: dict = Depends(AuthServic
         return conversations
     except HTTPException as e:
         raise e
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving conversations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

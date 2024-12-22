@@ -10,6 +10,7 @@ import json
 from services.auth_service import AuthService
 from fastapi import Depends
 from utils.logger import logger
+from azure.core.exceptions import ResourceNotFoundError
 
 class UserService:
     def __init__(self):
@@ -49,7 +50,12 @@ class UserService:
                 }
             else:
                 raise HTTPException(status_code=401, detail="Invalid credentials")
+        except ResourceNotFoundError as e:
+            raise HTTPException(status_code=401, detail="Invalid username")
         except Exception as e:
+            logger.error(f"Error logging in user: {str(e)}")
+            # also log exception type
+            logger.error(f"Exception type: {type(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def get_user_info(self, username: str) -> User:
