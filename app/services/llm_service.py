@@ -121,3 +121,15 @@ async def chat_with_llm_stream(messages: list[Message], project_contexts: list =
         except Exception as e:
             logger.error(f"An error occurred during streaming: {str(e)}")
             raise
+
+async def generate_description(first_message: str) -> str:
+    prompt = f"Generate a short description for the following conversation. This description "
+    "will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
+    logger.info(f"Generating description with prompt: {prompt}")
+    try:
+        description = await query_llm(prompt)
+        logger.info(f"Generated description: {description}")
+        return description
+    except Exception as e:
+        logger.error(f"Error generating description: {str(e)}")
+        return "Error generating description"

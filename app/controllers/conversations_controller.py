@@ -35,7 +35,7 @@ async def get_conversation(conversation_id: str, token_data: dict = Depends(Auth
     try:
         conversation_service = ConversationService()
         conversation = await conversation_service.get_conversation(conversation_id)
-        logger.info(f"Retrieved conversation: {conversation}")
+        # logger.info(f"Retrieved conversation: {conversation}")
         return conversation
     except HTTPException as e:
         raise e 
@@ -52,7 +52,7 @@ async def get_conversations(username: str, token_data: dict = Depends(AuthServic
             raise HTTPException(status_code=403, detail="Not authorized to access these conversations")
             
         conversations = await conversation_service.get_conversations_by_username(username)
-        logger.info(f"Retrieved conversations: {conversations}")
+        # logger.info(f"Retrieved conversations: {conversations}")
         return conversations
     except HTTPException as e:
         raise e

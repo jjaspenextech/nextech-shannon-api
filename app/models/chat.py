@@ -10,6 +10,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
+class DescriptionRequest(BaseModel):
+    prompt: str
+
 class User(BaseModel):
     username: str
     password: Optional[str] = None
