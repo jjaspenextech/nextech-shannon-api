@@ -57,11 +57,6 @@ class ConversationService:
     
     async def create_conversation(self, conversation: Conversation):
         first_message = conversation.messages[0].content
-        # prompt = f"Generate a short description for the following conversation. This description \
-        # will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
-        # logger.info(f"Generating description for conversation: {prompt}")
-        # conversation.description = await query_llm(prompt)
-        # logger.info(f"Generated description: {conversation.description}")
         conversation.conversation_id = str(uuid.uuid4())
         conversation_entity = {
             "PartitionKey": "conversations",

@@ -110,12 +110,6 @@ class UserService:
         }
 
     async def save_conversation(self, conversation: Conversation):
-        # Check if the conversation is new
-        if len(conversation.messages) == 1:
-            # Generate a description using the LLM
-            first_message = conversation.messages[0].content
-            conversation.description = await query_llm(first_message)
-
         conversation_entity = {
             "PartitionKey": "conversations",
             "RowKey": conversation.conversation_id,

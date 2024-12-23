@@ -70,9 +70,9 @@ class ProjectService:
                 "username": project.username,
                 "is_public": project.is_public
             }
-            self.projects_table.update_entity(entity=project_entity, mode=UpdateMode.MERGE)
             await self.update_project_contexts(project.project_id, project.contexts)
             await self.update_project_conversations(project.project_id, project.conversations)
+            self.projects_table.update_entity(entity=project_entity, mode=UpdateMode.REPLACE)
             return project
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

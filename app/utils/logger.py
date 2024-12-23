@@ -20,7 +20,7 @@ def setup_logger(name: str) -> logging.Logger:
     # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    # logger.addHandler(console_handler)
 
     # File Handler
     file_handler = RotatingFileHandler(

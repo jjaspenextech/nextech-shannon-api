@@ -6,6 +6,18 @@ from services import AuthService, ProjectService, ContextService
 from utils.logger import logger
 
 router = APIRouter()
+context_service = ContextService()
+project_service = ProjectService()
+
+async def get_project_contexts(project_id: str):
+    project_contexts = await context_service.get_contexts_by_project_id(project_id)
+    project = await project_service.get_project(project_id)
+    project_contexts.append({
+        "type": "project_description",
+        "content": project.description,
+        "name": project.name,
+        "project_id": project.project_id
+    })
 
 @router.post("/llm-query/", response_model=ChatResponse)
 async def llm_query(request: ChatRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):
@@ -21,12 +33,8 @@ async def llm_query(request: ChatRequest, token_data: dict = Depends(AuthService
 @router.post("/llm-query/stream/")
 async def llm_query_stream(request: ChatRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):
     logger.info(f"Received streaming chat request")
-    context_service = ContextService()
     try:
-        # Get project contexts if project_id is provided
-        project_contexts = []
-        if request.project_id:
-            project_contexts = await context_service.get_contexts_by_project_id(request.project_id)
+        project_contexts = await get_project_contexts(request.project_id)
 
         async def event_generator():
             async for token in chat_with_llm_stream(request.messages, project_contexts):

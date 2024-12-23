@@ -7,13 +7,8 @@ from typing import Literal, Optional, List, Dict
 import math
 MAX_TOKENS = Config.MAX_TOKENS
 
-def build_message_context(message: Message, project_contexts: list = None, ignore_contexts: bool = False):
-    context_parts = []
-    if project_contexts and not ignore_contexts:
-        context_parts.extend([f"{ctx.type}: {ctx.content}" for ctx in project_contexts])
-    
-    if message.contexts and not ignore_contexts:
-        context_parts.extend([f"{context.type}: {context.content}" for context in message.contexts])
+def build_chat_message_with_context(message: Message, contexts: list = None):
+    context_parts = [f"{ctx.type}: {ctx.content}" for ctx in contexts]
     
     context_str = "\nContexts: " + ", ".join(context_parts) if context_parts else ""
     
@@ -22,24 +17,39 @@ def build_message_context(message: Message, project_contexts: list = None, ignor
         "content": f"{message.content}{context_str}" if not ignore_contexts else message.content
     }
 
-def build_contexts(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
-    contexts = []
-    max_input_tokens = math.floor(max_tokens*0.9)
+def build_chat_messages(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
+    chat_messages = []
+    max_input_tokens = math.floor(max_tokens * 0.9)
+    
+    # Calculate the length of the project contexts
+    project_context_str = "\nContexts: " + ", ".join([f"{ctx.type}: {ctx.content}" for ctx in project_contexts]) if project_contexts else ""
+    project_context_length = len(project_context_str)
+    
+    # Adjust max tokens to account for project contexts
+    adjusted_max_tokens = max_input_tokens - project_context_length
+    
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
     
     for message in messages_sorted_by_sequence_desc:
-        msg_str = build_message_context(message, project_contexts)
-        if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
-            msg_str = build_message_context(message, project_contexts, ignore_contexts=True)
-            if (len(contexts) + len(msg_str)) / 3 > max_input_tokens:
+        msg_str = build_chat_message_with_context(message, message.contexts)
+        if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
+            msg_str = build_chat_message_with_context(message, [])
+            if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
                 break
-        contexts.insert(0, msg_str)
+        chat_messages.insert(0, msg_str)
     
-    return contexts
+    # Find the earliest user message and update it to include project contexts
+    for i in range(len(chat_messages)-1, -1, -1):
+        if chat_messages[i]['role'] == 'user':
+            all_contexts = messages[i].contexts
+            all_contexts.extend(project_contexts)
+            chat_messages[i]['content'] = build_chat_message_with_context(message, all_contexts)['content']
+            break
+    
+    return chat_messages
 
-async def get_query_params(messages: list[Message], project_contexts: list = None, stream: bool = False): 
-    print(f"MAX_TOKENS: {MAX_TOKENS}")
-    chat_messages = build_contexts(messages, project_contexts, MAX_TOKENS or 8000)
+def build_conversation_messages(messages: list[Message], contexts: list = None):
+    chat_messages = build_chat_messages(messages, contexts, MAX_TOKENS or 8000)
     # Add system message if not present
     if not any(msg['role'] == 'system' for msg in chat_messages):
         chat_messages.insert(0, {
@@ -49,7 +59,9 @@ async def get_query_params(messages: list[Message], project_contexts: list = Non
                    "If you're unsure about something, acknowledge the uncertainty and suggest alternatives "
                    "or ask for clarification."
         })
-    
+    return chat_messages
+
+async def get_query_params(chat_messages: list[dict], contexts: list = None):
     headers = {
         "api-key": Config.AZURE_OPENAI_API_KEY,
         "Content-Type": "application/json"
@@ -61,9 +73,6 @@ async def get_query_params(messages: list[Message], project_contexts: list = Non
         "max_tokens": MAX_TOKENS,
         "temperature": 0
     }
-    
-    if stream:
-        payload["stream"] = True
     
     url = f"{Config.AZURE_OPENAI_URL}openai/deployments/{Config.AZURE_OPENAI_MODEL}/chat/completions?api-version={Config.AZURE_OPENAI_API_VERSION}"
     logger.info(f"URL: {url}")
@@ -77,8 +86,11 @@ async def query_llm(content: str):
 
 async def chat_with_llm(messages: list[Message]):
     logger.info(f"Chatting with LLM with {len(messages)} messages")
-    headers, payload, url = await get_query_params(messages)
-    
+    chat_messages = build_conversation_messages(messages)
+    headers, payload, url = await get_query_params(chat_messages)
+    return await call_llm(headers, payload, url)
+
+async def call_llm(headers, payload, url):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, headers=headers, json=payload)
@@ -92,10 +104,11 @@ async def chat_with_llm(messages: list[Message]):
             logger.error(f"An error occurred: {str(e)}")
             raise
 
-async def chat_with_llm_stream(messages: list[Message], project_contexts: list = None):
+async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
     logger.info(f"Starting streaming response for chat with {len(messages)} messages")
-    
-    headers, payload, url = await get_query_params(messages, project_contexts, stream=True)
+    chat_messages = build_conversation_messages(messages, contexts)
+    headers, payload, url = await get_query_params(chat_messages)
+    payload["stream"] = True
     
     async with httpx.AsyncClient() as client:
         try:
@@ -122,14 +135,19 @@ async def chat_with_llm_stream(messages: list[Message], project_contexts: list =
             logger.error(f"An error occurred during streaming: {str(e)}")
             raise
 
-async def generate_description(first_message: str) -> str:
+async def generate_description(first_message: str, project_id: str) -> str:
     prompt = f"Generate a short description for the following conversation. This description "
     "will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
     logger.info(f"Generating description with prompt: {prompt}")
+    system_message = {
+        "role": "system",
+        "content": prompt.format(first_message)
+    }
+    user_message = build_chat_message_with_context(Message(role="user", content=first_message), contexts)
+    messages = [system_message, user_message]    
     try:
-        description = await query_llm(prompt)
-        logger.info(f"Generated description: {description}")
-        return description
+        headers, payload, url = await get_query_params(messages)
+        return await call_llm(headers, payload, url)
     except Exception as e:
         logger.error(f"Error generating description: {str(e)}")
         return "Error generating description"
