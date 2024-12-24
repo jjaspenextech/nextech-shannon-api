@@ -5,13 +5,13 @@ from utils.logger import logger
 from datetime import datetime
 
 router = APIRouter()
+conversation_service = ConversationService()
+project_service = ProjectService()
 
 @router.post("/conversation/")
 async def save_conversation(conversation: Conversation, token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         logger.info(f"Saving conversation: {conversation}")
-        conversation_service = ConversationService()
-        project_service = ProjectService()
         saved_conversation = await conversation_service.save_conversation(conversation)
         logger.info(f"Saved conversation: {saved_conversation}")
 

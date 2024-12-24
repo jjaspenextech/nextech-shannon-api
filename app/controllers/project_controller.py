@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import Project
 from services import ProjectService, ConversationService, AuthService
 from datetime import datetime
+from utils.logger import logger
 
 router = APIRouter()
 project_service = ProjectService()
@@ -81,3 +82,25 @@ async def get_project_conversations(
     except Exception as e:
         logger.error(f"Error getting conversations: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
+
+@router.delete("/projects/")
+async def delete_projects(
+    username: str = None,  # Query parameter
+    token_data: dict = Depends(AuthService.verify_jwt_token)
+):
+    try:
+        # Check if the user is an admin
+        if not token_data.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Not authorized to delete projects")
+
+        # Use the provided username or fallback to the token's username
+        target_username = username or token_data.get("username")
+        
+        await project_service.delete_user_projects(target_username)
+        return {"message": f"Projects for {target_username} deleted successfully"}
+    except HTTPException as e:
+        logger.error(f"Error deleting projects: {str(e)}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error deleting projects: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error") 

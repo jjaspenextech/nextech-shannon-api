@@ -7,6 +7,7 @@ import uuid
 from typing import List
 from services.context_service import ContextService
 from services.conversation_service import ConversationService
+from utils.logger import logger
 
 class ProjectService:
     def __init__(self):
@@ -128,4 +129,21 @@ class ProjectService:
             projects = self.projects_table.query_entities("PartitionKey eq 'projects' and is_public eq true")
             return [self.create_project_from_entity(entity) for entity in projects]
         except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def delete_user_projects(self, username: str):
+        try:
+            # Query all projects for the user
+            filter_query = f"PartitionKey eq 'projects' and username eq '{username}'"
+            projects = self.projects_table.query_entities(filter_query)
+
+            for project in projects:
+                project_id = project['RowKey']
+                # Delete conversations associated with the project
+                await self.conversation_service.delete_conversations_by_project_id(project_id)
+                # Delete the project itself
+                self.projects_table.delete_entity(partition_key="projects", row_key=project_id)
+
+        except Exception as e:
+            logger.error(f"Error deleting user projects: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e)) 

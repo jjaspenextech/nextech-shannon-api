@@ -37,11 +37,11 @@ class UserService:
                 first_name=user_entity.get("first_name", ""),
                 last_name=user_entity.get("last_name", ""),
                 is_admin=user_entity.get("is_admin", False),
-                api_keys={}
+                api_keys=json.loads(user_entity.get('api_keys', '{}'))
             )
             
             if user and AuthService.verify_password(password, user.password):
-                token = AuthService.create_jwt_token(user.username)
+                token = AuthService.create_jwt_token(user.username, user.is_admin)
                 return {
                     "token": token,
                     "username": user.username,
