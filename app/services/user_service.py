@@ -36,6 +36,7 @@ class UserService:
                 email=user_entity.get("email", ""),
                 first_name=user_entity.get("first_name", ""),
                 last_name=user_entity.get("last_name", ""),
+                is_admin=user_entity.get("is_admin", False),
                 api_keys={}
             )
             
@@ -67,6 +68,7 @@ class UserService:
                 email=user_entity.get("email", ""),
                 first_name=user_entity.get("first_name", ""),
                 last_name=user_entity.get("last_name", ""),
+                is_admin=user_entity.get("is_admin", False),
                 api_keys=api_keys
             )
         except Exception as e:
@@ -87,7 +89,8 @@ class UserService:
                 "email": email,
                 "first_name": first_name,
                 "last_name": last_name,
-                "api_keys": json.dumps({})
+                "api_keys": json.dumps({}),
+                "is_admin": False
             }
             self.users_table.create_entity(entity=user_entity)
             user = User(
@@ -95,12 +98,17 @@ class UserService:
                 password=user_entity.get("password"),
                 email=user_entity.get("email"),
                 first_name=user_entity.get("first_name"),
-                last_name=user_entity.get("last_name")
+                last_name=user_entity.get("last_name"),
+                is_admin=user_entity.get("is_admin", False),
+                api_keys=json.loads(user_entity.get('api_keys', '{}'))
             )
             return user
 
-    async def get_user_token(self,user:User):
-        token = AuthService.create_jwt_token(user.username)
+    async def get_user_token(self, user: User):
+        # Fetch the user's admin status from the database or user object
+        is_admin = user.is_admin or False
+
+        token = AuthService.create_jwt_token(user.username, is_admin)
         return {
             "token": token,
             "username": user.username,

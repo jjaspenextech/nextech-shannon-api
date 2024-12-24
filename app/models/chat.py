@@ -20,6 +20,7 @@ class User(BaseModel):
     first_name: str
     last_name: str
     api_keys: Dict[str, str] = {}
+    is_admin: bool = False
 
     def get_api_key(self, service: str) -> str:
         if not (key := self.api_keys.get(service)):

@@ -126,3 +126,17 @@ class ContextService:
             self.contexts_blob_container.delete_blob(context.blob_name)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def delete_contexts_by_message_id(self, message_id: str):
+        try:
+            filter_query = f"PartitionKey eq 'contexts' and message_id eq '{message_id}'"
+            contexts = self.contexts_table.query_entities(filter_query)
+
+            for context in contexts:
+                context_id = context['RowKey']
+                # Delete the context
+                self.contexts_table.delete_entity(partition_key="contexts", row_key=context_id)
+
+        except Exception as e:
+            logger.error(f"Error deleting contexts for message {message_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))

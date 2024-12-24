@@ -20,12 +20,15 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid token") 
 
     @classmethod
-    def create_jwt_token(cls, username: str) -> str:
+    def create_jwt_token(cls, username: str, is_admin: bool) -> str:
         payload = {
             "username": username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=cls.token_duration * 24)
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=cls.token_duration * 24),
+            "is_admin": is_admin,
+            # Add other claims as needed
         }
         return jwt.encode(payload, cls.secret_key, algorithm="HS256")
+        return token
 
     @staticmethod
     def hash_password(password: str) -> str:

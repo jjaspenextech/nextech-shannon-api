@@ -6,6 +6,7 @@ from typing import List
 import json
 import uuid
 from services.context_service import ContextService
+from utils.logger import logger
 
 class MessageService:
     def __init__(self):
@@ -70,3 +71,19 @@ class MessageService:
         contexts = await self.context_service.get_contexts_by_message_id(first_message_entity['message_id'])
         first_message_entity['contexts'] = contexts
         return Message(**first_message_entity)
+
+    async def delete_messages_by_conversation_id(self, conversation_id: str):
+        try:
+            filter_query = f"PartitionKey eq 'messages' and conversation_id eq '{conversation_id}'"
+            messages = self.messages_table.query_entities(filter_query)
+
+            for message in messages:
+                message_id = message['RowKey']
+                # Delete contexts associated with the message
+                await self.context_service.delete_contexts_by_message_id(message_id)
+                # Delete the message itself
+                self.messages_table.delete_entity(partition_key="messages", row_key=message_id)
+
+        except Exception as e:
+            logger.error(f"Error deleting messages for conversation {conversation_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))

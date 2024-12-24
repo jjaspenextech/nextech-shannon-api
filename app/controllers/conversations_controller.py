@@ -59,3 +59,25 @@ async def get_conversations(username: str, token_data: dict = Depends(AuthServic
     except Exception as e:
         logger.error(f"Unexpected error retrieving conversations: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/conversations/")
+async def delete_conversations(
+    username: str = None,  # Query parameter
+    token_data: dict = Depends(AuthService.verify_jwt_token)
+):
+    try:
+        # Check if the user is an admin
+        if not token_data.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Not authorized to delete conversations")
+
+        # Use the provided username or fallback to the token's username
+        target_username = username or token_data.get("username")
+        
+        await conversation_service.delete_user_conversations(target_username)
+        return {"message": f"Conversations for {target_username} deleted successfully"}
+    except HTTPException as e:
+        logger.error(f"Error deleting conversations: {str(e)}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error deleting conversations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

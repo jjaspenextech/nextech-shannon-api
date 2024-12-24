@@ -152,3 +152,20 @@ class ConversationService:
             description=entity.get('description', ''),
             messages=[]  # Will be populated separately
         )
+
+    async def delete_user_conversations(self, username: str):
+        try:
+            # Query all conversations for the user that do not belong to a project
+            filter_query = f"PartitionKey eq 'conversations' and username eq '{username}' and project_id eq ''"
+            conversations = self.conversations_table.query_entities(filter_query)
+
+            for conversation in conversations:
+                conversation_id = conversation['RowKey']
+                # Delete messages associated with the conversation
+                await self.message_service.delete_messages_by_conversation_id(conversation_id)
+                # Delete the conversation itself
+                self.conversations_table.delete_entity(partition_key="conversations", row_key=conversation_id)
+
+        except Exception as e:
+            logger.error(f"Error deleting user conversations: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
