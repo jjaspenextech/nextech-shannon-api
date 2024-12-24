@@ -52,3 +52,21 @@ class MessageService:
             message['contexts'] = contexts
             result.append(Message(**message))
         return result 
+
+    async def get_first_message_by_conversation_id(self, conversation_id: str) -> Message:
+        filter_query = f"PartitionKey eq 'messages' and conversation_id eq '{conversation_id}'"
+        messages = self.messages_table.query_entities(filter_query)
+        
+        # Convert the paged results to a list and sort by sequence
+        messages_list = list(messages)
+        if not messages_list:
+            return None
+        
+        # Sort messages by the 'sequence' property
+        messages_list.sort(key=lambda msg: msg['sequence'])
+        
+        # Get the first message after sorting
+        first_message_entity = messages_list[0]
+        contexts = await self.context_service.get_contexts_by_message_id(first_message_entity['message_id'])
+        first_message_entity['contexts'] = contexts
+        return Message(**first_message_entity)

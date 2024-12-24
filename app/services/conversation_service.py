@@ -110,12 +110,14 @@ class ConversationService:
         # Convert the entities to Conversation objects
         result = []
         for entity in conversations:
-            messages = await self.message_service.get_messages_by_conversation_id(entity['RowKey'])
+            # messages = await self.message_service.get_messages_by_conversation_id(entity['RowKey'])
+            first_message = await self.message_service.get_first_message_by_conversation_id(entity['RowKey'])
             conversation = Conversation(
                 conversation_id=entity['RowKey'],
                 username=entity['username'],
                 description=entity.get('description', ''),
-                messages=messages
+                messages=[first_message],
+                updated_at=entity.get('updated_at')
             )
             result.append(conversation)
             

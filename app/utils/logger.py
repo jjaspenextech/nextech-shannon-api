@@ -1,5 +1,6 @@
 import logging
 import sys
+import traceback
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
@@ -7,10 +8,17 @@ from logging.handlers import RotatingFileHandler
 logs_dir = Path("logs")
 logs_dir.mkdir(exist_ok=True)
 
+class CustomLogger(logging.Logger):
+    def error(self, msg, *args, **kwargs):
+        super().error(msg, *args, **kwargs)
+        # if we have an exception argument, print the stack trace
+        # if 'exc_info' in kwargs and kwargs['exc_info']:
+        super().error(f"Stack trace: {traceback.format_exc()}")
+
 # Configure logging
 def setup_logger(name: str) -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger = CustomLogger(name)
+    logger.setLevel(logging.ERROR)
 
     # Format for our log messages
     formatter = logging.Formatter(
@@ -20,7 +28,7 @@ def setup_logger(name: str) -> logging.Logger:
     # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
-    # logger.addHandler(console_handler)
+    logger.addHandler(console_handler)
 
     # File Handler
     file_handler = RotatingFileHandler(
