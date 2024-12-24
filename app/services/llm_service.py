@@ -14,7 +14,7 @@ def build_chat_message_with_context(message: Message, contexts: list = None):
     
     return {
         "role": message.role,
-        "content": f"{message.content}{context_str}" if not ignore_contexts else message.content
+        "content": f"{message.content}{context_str}" if contexts != None else message.content
     }
 
 def build_chat_messages(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:

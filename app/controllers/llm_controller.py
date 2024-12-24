@@ -34,7 +34,7 @@ async def llm_query(request: ChatRequest, token_data: dict = Depends(AuthService
 async def llm_query_stream(request: ChatRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):
     logger.info(f"Received streaming chat request")
     try:
-        project_contexts = await get_project_contexts(request.project_id)
+        project_contexts = await get_project_contexts(request.project_id) if request.project_id else []
 
         async def event_generator():
             async for token in chat_with_llm_stream(request.messages, project_contexts):
