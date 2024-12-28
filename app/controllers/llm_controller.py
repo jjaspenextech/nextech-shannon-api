@@ -52,8 +52,9 @@ async def llm_query_stream(request: ChatRequest, token_data: dict = Depends(Auth
 @router.post("/llm-query/description")
 async def llm_generate_description(request: DescriptionRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):
     logger.info(f"Received request to generate description")
+    project_contexts = await get_project_contexts(request.project_id) if request.project_id else []
     try:
-        description = await generate_description(request.prompt)
+        description = await generate_description(request.prompt, project_contexts)
         logger.info("Successfully generated description")
         return {"description": description}
     except Exception as e:

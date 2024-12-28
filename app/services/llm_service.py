@@ -88,9 +88,9 @@ async def chat_with_llm(messages: list[Message]):
     logger.info(f"Chatting with LLM with {len(messages)} messages")
     chat_messages = build_conversation_messages(messages)
     headers, payload, url = await get_query_params(chat_messages)
-    return await call_llm(headers, payload, url)
+    return await call_llm_api(headers, payload, url)
 
-async def call_llm(headers, payload, url):
+async def call_llm_api(headers, payload, url):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, headers=headers, json=payload)
@@ -135,7 +135,7 @@ async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
             logger.error(f"An error occurred during streaming: {str(e)}")
             raise
 
-async def generate_description(first_message: str, project_id: str) -> str:
+async def generate_description(first_message: str, contexts: list = []) -> str:
     prompt = f"Generate a short description for the following conversation. This description "
     "will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
     logger.info(f"Generating description with prompt: {prompt}")
@@ -147,7 +147,7 @@ async def generate_description(first_message: str, project_id: str) -> str:
     messages = [system_message, user_message]    
     try:
         headers, payload, url = await get_query_params(messages)
-        return await call_llm(headers, payload, url)
+        return await call_llm_api(headers, payload, url)
     except Exception as e:
         logger.error(f"Error generating description: {str(e)}")
         return "Error generating description"
