@@ -21,6 +21,7 @@ class User(BaseModel):
     last_name: str
     api_keys: Dict[str, str] = {}
     is_admin: bool = False
+    theme: Optional[str] = None  # New field for theme preference
 
     def get_api_key(self, service: str) -> str:
         if not (key := self.api_keys.get(service)):

@@ -186,3 +186,17 @@ class UserService:
         except Exception as e:
             logger.error(f"Error validating signup code: {str(e)}")
             return False
+
+    def update_user_theme(self, username: str, theme: str) -> dict:
+        try:
+            user_entity = self.users_table.get_entity(partition_key="users", row_key=username)
+            
+            # Update the theme
+            user_entity['theme'] = theme
+            
+            # Update the entity
+            self.users_table.update_entity(entity=user_entity, mode=UpdateMode.MERGE)
+            
+            return {"message": "Theme updated successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
