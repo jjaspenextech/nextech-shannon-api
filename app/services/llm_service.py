@@ -136,13 +136,15 @@ async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
             raise
 
 async def generate_description(first_message: str, contexts: list = []) -> str:
-    prompt = f"Generate a short description for the following conversation. This description "
-    "will be saved as the title of the conversation for future reference, so it needs to be concise and descriptive: {first_message}"
+    prompt = f"You are an assistant that generates short descriptions for conversations. "
+    "This description will be saved as the title of the conversation for future reference, "
+    "so it needs to be concise and descriptive."
     logger.info(f"Generating description with prompt: {prompt}")
     system_message = {
         "role": "system",
         "content": prompt.format(first_message)
     }
+    first_message = f"The first message in the conversation is: {first_message}"
     user_message = build_chat_message_with_context(Message(role="user", content=first_message), contexts)
     messages = [system_message, user_message]    
     try:
