@@ -12,6 +12,7 @@ class ChatResponse(BaseModel):
 
 class DescriptionRequest(BaseModel):
     prompt: str
+    project_id: Optional[str] = None
 
 class User(BaseModel):
     username: str
@@ -29,7 +30,7 @@ class User(BaseModel):
         return key
 
 class ApiKeyUpdate(BaseModel):
-    service: Literal['jira']  # We can add more services later
+    service: Literal['JIRA', 'GITHUB', 'SLACK', 'CONFLUENCE']  # We can add more services later
     key: str
 
 class ApiKeys(BaseModel):

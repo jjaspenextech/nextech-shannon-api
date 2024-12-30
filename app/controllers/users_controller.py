@@ -43,9 +43,10 @@ async def get_api_keys(token_data: dict = Depends(AuthService.verify_jwt_token))
         raise e
 
 @router.post("/user/theme")
-async def update_user_theme(theme: str = Body(...), token_data: dict = Depends(AuthService.verify_jwt_token)):
+async def update_user_theme(body = Body(...), token_data: dict = Depends(AuthService.verify_jwt_token)):
     try:
         username = token_data.get("username")
+        theme = body.get("theme")
         return user_service.update_user_theme(username, theme)
     except HTTPException as e:
         raise e 
