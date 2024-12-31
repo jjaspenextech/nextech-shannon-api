@@ -46,7 +46,7 @@ class ConversationService:
                 logger.error(f"Error updating conversation: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        messages_without_id = [message for message in conversation.messages if message.message_id is None]
+        messages_without_id = [message for message in conversation.messages if message.message_id is None and message.content != '']
 
         # Save each message separately using MessageService
         for message in messages_without_id:
