@@ -39,6 +39,7 @@ class MessageService:
             # add new contexts to the message
             for context in message.contexts:
                 if context.context_id not in [existing_context.context_id for existing_context in existing_contexts]:
+                    context.message_id = message.message_id
                     await self.context_service.save_context(context)
             return entity
         except Exception as e:

@@ -7,17 +7,37 @@ from typing import Literal, Optional, List, Dict
 import math
 MAX_TOKENS = Config.MAX_TOKENS
 
-def build_chat_message_with_context(message: Message, contexts: list = None):
-    context_parts = [f"{ctx.type}: {ctx.content}" for ctx in contexts]
+def build_chat_message_with_contexts(message: Message, contexts: list = None):
+    text_contexts = [ctx for ctx in contexts if ctx.type != 'image'] if contexts != None else None
+    image_contexts = [ctx for ctx in contexts if ctx.type == 'image']
+    context_parts = [f"{ctx.type}: {ctx.content}" for ctx in text_contexts]
     
     context_str = "\nContexts: " + ", ".join(context_parts) if context_parts else ""
-    
-    return {
+    text_content = f"{message.content}{context_str}" if text_contexts != None else message.content
+    chat_message = {
         "role": message.role,
-        "content": f"{message.content}{context_str}" if contexts != None else message.content
+        "content": text_content
     }
 
-def build_chat_messages(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
+    if image_contexts:
+        # build image content for each image context
+        chat_message['content'] = [{"type": "text", "text": text_content}]
+        for ctx in image_contexts:
+            if ctx.type == 'image':
+                chat_message['content'].append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{ctx.content}"}})
+
+    return chat_message
+
+# Find the earliest user message and update it to include project contexts
+def add_project_contexts(chat_messages: list, messages: list[Message], project_contexts: list = None):
+    for i in range(len(chat_messages)-1, -1, -1):
+        if chat_messages[i]['role'] == 'user':
+            all_contexts = messages[i].contexts
+            all_contexts.extend(project_contexts)
+            chat_messages[i]['content'] = build_chat_message_with_contexts(messages[i], all_contexts)['content']
+            break
+
+def build_chat_messages_for_api(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
     chat_messages = []
     max_input_tokens = math.floor(max_tokens * 0.9)
     
@@ -31,26 +51,18 @@ def build_chat_messages(messages: list[Message], project_contexts: list = None, 
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
     
     for message in messages_sorted_by_sequence_desc:
-        msg_str = build_chat_message_with_context(message, message.contexts)
+        msg_str = build_chat_message_with_contexts(message, message.contexts)
         if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
-            msg_str = build_chat_message_with_context(message, [])
+            msg_str = build_chat_message_with_contexts(message, [])
             if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
                 break
         chat_messages.insert(0, msg_str)
     
-    # Find the earliest user message and update it to include project contexts
-    for i in range(len(chat_messages)-1, -1, -1):
-        if chat_messages[i]['role'] == 'user':
-            all_contexts = messages[i].contexts
-            all_contexts.extend(project_contexts)
-            chat_messages[i]['content'] = build_chat_message_with_context(message, all_contexts)['content']
-            break
-    
+    add_project_contexts(chat_messages, messages, project_contexts)
+
     return chat_messages
 
-def build_conversation_messages(messages: list[Message], contexts: list = None):
-    chat_messages = build_chat_messages(messages, contexts, MAX_TOKENS or 8000)
-    # Add system message if not present
+def add_conversation_system_message(chat_messages: list):
     if not any(msg['role'] == 'system' for msg in chat_messages):
         chat_messages.insert(0, {
             "role": 'system',
@@ -59,9 +71,8 @@ def build_conversation_messages(messages: list[Message], contexts: list = None):
                    "If you're unsure about something, acknowledge the uncertainty and suggest alternatives "
                    "or ask for clarification."
         })
-    return chat_messages
 
-async def get_query_params(chat_messages: list[dict], contexts: list = None):
+async def get_api_call_params(chat_messages: list[dict], contexts: list = None):
     headers = {
         "api-key": Config.AZURE_OPENAI_API_KEY,
         "Content-Type": "application/json"
@@ -86,8 +97,9 @@ async def query_llm(content: str):
 
 async def chat_with_llm(messages: list[Message]):
     logger.info(f"Chatting with LLM with {len(messages)} messages")
-    chat_messages = build_conversation_messages(messages)
-    headers, payload, url = await get_query_params(chat_messages)
+    chat_messages = build_chat_messages_for_api(messages)
+    add_conversation_system_message(chat_messages)
+    headers, payload, url = await get_api_call_params(chat_messages)
     return await call_llm_api(headers, payload, url)
 
 async def call_llm_api(headers, payload, url):
@@ -106,8 +118,9 @@ async def call_llm_api(headers, payload, url):
 
 async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
     logger.info(f"Starting streaming response for chat with {len(messages)} messages")
-    chat_messages = build_conversation_messages(messages, contexts)
-    headers, payload, url = await get_query_params(chat_messages)
+    chat_messages = build_chat_messages_for_api(messages, contexts)
+    add_conversation_system_message(chat_messages)
+    headers, payload, url = await get_api_call_params(chat_messages)
     payload["stream"] = True
     
     async with httpx.AsyncClient() as client:
@@ -135,7 +148,7 @@ async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
             logger.error(f"An error occurred during streaming: {str(e)}")
             raise
 
-async def generate_description(first_message: str, contexts: list = []) -> str:
+async def generate_conversation_description_with_llm(first_message: str, contexts: list = []) -> str:
     prompt = f"You are an assistant that generates short descriptions for conversations. "
     "This description will be saved as the title of the conversation for future reference, "
     "so it needs to be concise and descriptive."
@@ -145,10 +158,10 @@ async def generate_description(first_message: str, contexts: list = []) -> str:
         "content": prompt.format(first_message)
     }
     first_message = f"The first message in the conversation is: {first_message}"
-    user_message = build_chat_message_with_context(Message(role="user", content=first_message), contexts)
+    user_message = build_chat_message_with_contexts(Message(role="user", content=first_message), contexts)
     messages = [system_message, user_message]    
     try:
-        headers, payload, url = await get_query_params(messages)
+        headers, payload, url = await get_api_call_params(messages)
         return await call_llm_api(headers, payload, url)
     except Exception as e:
         logger.error(f"Error generating description: {str(e)}")

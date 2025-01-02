@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from models.chat import ChatRequest, ChatResponse, DescriptionRequest
-from services.llm_service import chat_with_llm_stream, query_llm, generate_description
+from services.llm_service import chat_with_llm_stream, query_llm, generate_conversation_description_with_llm
 from services import AuthService, ProjectService, ContextService
 from utils.logger import logger
 
@@ -54,7 +54,7 @@ async def llm_generate_description(request: DescriptionRequest, token_data: dict
     logger.info(f"Received request to generate description")
     project_contexts = await get_project_contexts(request.project_id) if request.project_id else []
     try:
-        description = await generate_description(request.prompt, project_contexts)
+        description = await generate_conversation_description_with_llm(request.prompt, project_contexts)
         logger.info("Successfully generated description")
         return {"description": description}
     except Exception as e:

@@ -136,6 +136,7 @@ class ContextService:
                 context_id = context['RowKey']
                 # Delete the context
                 self.contexts_table.delete_entity(partition_key="contexts", row_key=context_id)
+                self.contexts_blob_container.delete_blob(context['blob_name'], delete_snapshots='include')
 
         except Exception as e:
             logger.error(f"Error deleting contexts for message {message_id}: {str(e)}")
