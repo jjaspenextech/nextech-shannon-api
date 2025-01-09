@@ -18,7 +18,7 @@ class CustomLogger(logging.Logger):
 # Configure logging
 def setup_logger(name: str) -> logging.Logger:
     logger = CustomLogger(name)
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.DEBUG)
 
     # Format for our log messages
     formatter = logging.Formatter(

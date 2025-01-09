@@ -69,3 +69,10 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+## Publish to Azure App Service from local
+```PowerShell
+az login
+.\infrastructure\prepare-python-api.ps1 # this copies the right files to the dist\app folder
+Compress-Archive -Path ./dist/app -DestinationPath deploy.zip -Force
+az webapp deploy --resource-group nextech-shannon-dev-rg --name nextech-shannon-dev-api --src-path deploy.zip --type zip
+```

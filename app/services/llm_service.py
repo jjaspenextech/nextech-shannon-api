@@ -9,7 +9,7 @@ MAX_TOKENS = Config.MAX_TOKENS
 
 def build_chat_message_with_contexts(message: Message, contexts: list = None):
     text_contexts = [ctx for ctx in contexts if ctx.type != 'image'] if contexts != None else None
-    image_contexts = [ctx for ctx in contexts if ctx.type == 'image']
+    image_contexts = [ctx for ctx in contexts if ctx.type == 'image'] if contexts != None else None
     context_parts = [f"{ctx.type}: {ctx.content}" for ctx in text_contexts]
     
     context_str = "\nContexts: " + ", ".join(context_parts) if context_parts else ""
@@ -32,14 +32,15 @@ def build_chat_message_with_contexts(message: Message, contexts: list = None):
 def add_project_contexts(chat_messages: list, messages: list[Message], project_contexts: list = None):
     for i in range(len(chat_messages)-1, -1, -1):
         if chat_messages[i]['role'] == 'user':
-            all_contexts = messages[i].contexts
-            all_contexts.extend(project_contexts)
+            all_contexts = messages[i].contexts or []
+            all_contexts.extend(project_contexts or [])
             chat_messages[i]['content'] = build_chat_message_with_contexts(messages[i], all_contexts)['content']
             break
 
 def build_chat_messages_for_api(messages: list[Message], project_contexts: list = None, max_tokens: int = MAX_TOKENS) -> list[str]:
     chat_messages = []
     max_input_tokens = math.floor(max_tokens * 0.9)
+    logger.info(f"Max input tokens: {max_input_tokens}")
     
     # Calculate the length of the project contexts
     project_context_str = "\nContexts: " + ", ".join([f"{ctx.type}: {ctx.content}" for ctx in project_contexts]) if project_contexts else ""
@@ -49,9 +50,11 @@ def build_chat_messages_for_api(messages: list[Message], project_contexts: list 
     adjusted_max_tokens = max_input_tokens - project_context_length
     
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
+    logger.info(f"Messages sorted by sequence: {messages_sorted_by_sequence_desc}")
     
     for message in messages_sorted_by_sequence_desc:
         msg_str = build_chat_message_with_contexts(message, message.contexts)
+        logger.info(f"Message: {msg_str}")
         if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
             msg_str = build_chat_message_with_contexts(message, [])
             if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
@@ -119,10 +122,11 @@ async def call_llm_api(headers, payload, url):
 async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
     logger.info(f"Starting streaming response for chat with {len(messages)} messages")
     chat_messages = build_chat_messages_for_api(messages, contexts)
+    logger.info(f"Chat messages: {chat_messages}")
     add_conversation_system_message(chat_messages)
     headers, payload, url = await get_api_call_params(chat_messages)
     payload["stream"] = True
-    
+    logger.info(f"Payload: {payload}")
     async with httpx.AsyncClient() as client:
         try:
             async with client.stream('POST', url, headers=headers, json=payload) as response:
@@ -142,8 +146,17 @@ async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
                                 logger.error(f"Error parsing chunk: {str(e)}")
                                 continue
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error occurred during streaming: {e.response.status_code} - {e.response.text}")
-            raise
+            # getting this error:
+            # | httpx.ResponseNotRead: Attempted to access streaming response content, without having called `read()`.
+            # how can we check that the response is read?
+            # answer:
+            try:
+                logger.error(f"HTTP error occurred during streaming: {e.response.status_code} - {e.response.text}")
+                raise
+            except Exception as inner_e:
+                logger.error(f"An error occurred during logging of error: {str(inner_e)}")
+                logger.error(f"payload for original error: {payload}")
+                raise
         except Exception as e:
             logger.error(f"An error occurred during streaming: {str(e)}")
             raise
