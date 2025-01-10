@@ -3,11 +3,12 @@ import httpx
 from config import Config
 from utils.logger import logger
 from models.chat import Message
+from models.context import Context
 from typing import Literal, Optional, List, Dict
 import math
 MAX_TOKENS = Config.MAX_TOKENS
 
-def build_chat_message_with_contexts(message: Message, contexts: list = None):
+def build_chat_message_with_contexts(message: Message, contexts: list[Context] = None):
     text_contexts = [ctx for ctx in contexts if ctx.type != 'image'] if contexts != None else None
     image_contexts = [ctx for ctx in contexts if ctx.type == 'image'] if contexts != None else None
     context_parts = [f"{ctx.type}: {ctx.content}" for ctx in text_contexts]
@@ -29,7 +30,7 @@ def build_chat_message_with_contexts(message: Message, contexts: list = None):
     return chat_message
 
 # Find the earliest user message and update it to include project contexts
-def add_project_contexts(chat_messages: list, messages: list[Message], project_contexts: list = None):
+def add_project_contexts(chat_messages: list, messages: list[Message], project_contexts: list[Context] = None):
     for i in range(len(chat_messages)-1, -1, -1):
         if chat_messages[i]['role'] == 'user':
             all_contexts = messages[i].contexts or []

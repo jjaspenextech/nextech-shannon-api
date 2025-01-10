@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from models.chat import ChatRequest, ChatResponse, DescriptionRequest
+from models import ChatRequest, ChatResponse, DescriptionRequest, Context
 from services.llm_service import chat_with_llm_stream, query_llm, generate_conversation_description_with_llm
 from services import AuthService, ProjectService, ContextService
 from utils.logger import logger
@@ -12,12 +12,14 @@ project_service = ProjectService()
 async def get_project_contexts(project_id: str):
     project_contexts = await context_service.get_contexts_by_project_id(project_id)
     project = await project_service.get_project(project_id)
-    project_contexts.append({
-        "type": "project_description",
-        "content": project.description,
-        "name": project.name,
-        "project_id": project.project_id
-    })
+    project_contexts.append(Context(
+        type="project_description",
+        content=project.description,
+        name=project.name,
+        project_id=project.project_id
+    ))
+    
+    return project_contexts
 
 @router.post("/llm-query/", response_model=ChatResponse)
 async def llm_query(request: ChatRequest, token_data: dict = Depends(AuthService.verify_jwt_token)):
