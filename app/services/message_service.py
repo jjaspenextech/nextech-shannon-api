@@ -7,6 +7,7 @@ import json
 import uuid
 from services.context_service import ContextService
 from utils.logger import logger
+from datetime import datetime
 
 class MessageService:
     def __init__(self):
@@ -42,6 +43,22 @@ class MessageService:
                     context.message_id = message.message_id
                     await self.context_service.save_context(context)
             return entity
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def update_message(self, message: Message):
+        message_entity = {
+            "PartitionKey": "messages",
+            "RowKey": message.message_id,
+            "conversation_id": message.conversation_id,
+            "content": message.content,
+            "sequence": message.sequence,
+            "role": message.role,
+            "updated_at": datetime.now().isoformat()
+        }
+        try:
+            self.messages_table.update_entity(entity=message_entity, mode=UpdateMode.MERGE)
+            # let's assume no changes to message contexts for now
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

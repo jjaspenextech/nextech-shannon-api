@@ -21,6 +21,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY")
     TOKEN_DURATION = int(os.getenv("TOKEN_DURATION", 0))
     MAX_TOKENS = int(os.getenv("MAX_TOKENS", 0))
+    MAX_OUTPUT_TOKENS = int(os.getenv("MAX_OUTPUT_TOKENS", 16000))
 
     @classmethod
     def serialize(cls):

@@ -52,6 +52,11 @@ class ConversationService:
         for message in messages_without_id:
             logger.info(f"Saving message: {message}")
             await self.message_service.save_message(message, conversation.conversation_id)
+
+        messages_to_update = [message for message in conversation.messages if message.message_id is not None and message.content != '']
+        for message in messages_to_update:
+            logger.info(f"Updating message: {message}")
+            await self.message_service.update_message(message)
         
         return conversation
     
@@ -97,7 +102,8 @@ class ConversationService:
                 conversation_id=conversation_entity['conversation_id'],
                 username=conversation_entity['username'],
                 description=conversation_entity.get('description'),
-                messages=sorted_messages
+                messages=sorted_messages,
+                updated_at=conversation_entity.get('updated_at')            
             )
         except Exception as e:
             raise HTTPException(status_code=404, detail="Conversation not found")
@@ -151,6 +157,7 @@ class ConversationService:
             project_id=entity.get('project_id'),
             username=entity.get('username'),
             description=entity.get('description', ''),
+            updated_at=entity.get('updated_at'),
             messages=[]  # Will be populated separately
         )
 

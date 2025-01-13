@@ -6,9 +6,21 @@ from models.chat import Message
 from models.context import Context
 from typing import Literal, Optional, List, Dict
 import math
+import tiktoken
 MAX_TOKENS = Config.MAX_TOKENS
+TIMEOUT_CONFIG = httpx.Timeout(
+    connect=10.0,    # connection timeout
+    read=300.0,      # read timeout
+    write=10.0,      # write timeout
+    pool=10.0        # pool timeout
+)
 
-def build_chat_message_with_contexts(message: Message, contexts: list[Context] = None):
+encoding = tiktoken.encoding_for_model("gpt-4")
+
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    return len(encoding.encode(text))
+
+def build_chat_message_with_contexts(message: Message, contexts: list[Context] = None) -> dict:
     text_contexts = [ctx for ctx in contexts if ctx.type != 'image'] if contexts != None else None
     image_contexts = [ctx for ctx in contexts if ctx.type == 'image'] if contexts != None else None
     context_parts = [f"{ctx.type}: {ctx.content}" for ctx in text_contexts]
@@ -52,16 +64,19 @@ def build_chat_messages_for_api(messages: list[Message], project_contexts: list 
     
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
     logger.info(f"Messages sorted by sequence: {messages_sorted_by_sequence_desc}")
+
+    used_tokens = 0
     
     for message in messages_sorted_by_sequence_desc:
-        msg_str = build_chat_message_with_contexts(message, message.contexts)
-        logger.info(f"Message: {msg_str}")
-        if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
-            msg_str = build_chat_message_with_contexts(message, [])
-            if (len(chat_messages) + len(msg_str)) / 3 > adjusted_max_tokens:
+        chat_message = build_chat_message_with_contexts(message, message.contexts)
+        logger.info(f"Message: {chat_message}")
+        if (used_tokens + count_tokens(chat_message['content'])) > adjusted_max_tokens:
+            chat_message = build_chat_message_with_contexts(message, [])
+            if (used_tokens + count_tokens(chat_message['content'])) > adjusted_max_tokens:
                 break
-        chat_messages.insert(0, msg_str)
-    
+        chat_messages.insert(0, chat_message)
+        used_tokens += count_tokens(chat_message['content'] )
+
     add_project_contexts(chat_messages, messages, project_contexts)
 
     return chat_messages
@@ -85,7 +100,7 @@ async def get_api_call_params(chat_messages: list[dict], contexts: list = None):
     
     payload = {
         "messages": chat_messages, 
-        "max_tokens": MAX_TOKENS,
+        "max_tokens": Config.MAX_OUTPUT_TOKENS,
         "temperature": 0
     }
     
@@ -128,7 +143,8 @@ async def chat_with_llm_stream(messages: list[Message], contexts: list = None):
     headers, payload, url = await get_api_call_params(chat_messages)
     payload["stream"] = True
     logger.info(f"Payload: {payload}")
-    async with httpx.AsyncClient() as client:
+    
+    async with httpx.AsyncClient(timeout=TIMEOUT_CONFIG) as client:
         try:
             async with client.stream('POST', url, headers=headers, json=payload) as response:
                 response.raise_for_status()
