@@ -170,3 +170,4 @@ cython_debug/
 /**/dist/
 
 deploy.zip
+/app/logs/
