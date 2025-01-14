@@ -61,6 +61,8 @@ def build_chat_messages_for_api(messages: list[Message], project_contexts: list 
     
     # Adjust max tokens to account for project contexts
     adjusted_max_tokens = max_input_tokens - project_context_length
+    if adjusted_max_tokens < 0:
+        raise ValueError(f"Project contexts are too long, max tokens: {max_input_tokens}, project contexts length: {project_context_length}")
     
     messages_sorted_by_sequence_desc = sorted(messages, key=lambda x: x.sequence, reverse=True)
     logger.info(f"Messages sorted by sequence: {messages_sorted_by_sequence_desc}")
